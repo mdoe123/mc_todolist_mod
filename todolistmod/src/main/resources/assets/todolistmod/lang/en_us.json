@@ -12,6 +12,7 @@
   "todolist.end.not_running": "No running checklist named: %s",
   "todolist.end.ended": "Ended checklist: %s",
   "todolist.back.not_running": "No running checklist named: %s",
+  "todolist.choose.ambiguous": "Multiple checklists are running. Use /todolist true <name> or /todolist false <name> to specify.",
   "todolist.edit.file_path": "Checklist file path: %s",
   "todolist.edit.not_found": "Checklist not found: %s, editor opened anyway",
   "todolist.edit.click_to_open": "-> Click to open editor",

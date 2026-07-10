@@ -108,6 +108,22 @@ public class ChecklistExecutor {
     }
 
     /**
+     * 快捷确认/否决当前步骤。必须在客户端主线程调用。
+     *
+     * <p>等价于点击当前步骤的「是/否」按钮。若处于版本确认待决状态，
+     * 则等价于点击「继续执行」/「取消」。若当前步骤为终止步骤或已结束则忽略。</p>
+     *
+     * @param choice true 确认（执行 trueDo / 继续执行），false 否决（执行 falseDo / 取消）
+     */
+    public void chooseCurrent(boolean choice) {
+        if (pendingVersionConfirm) {
+            choose(-1, choice);
+        } else if (currentTask != null) {
+            choose(currentTask.id, choice);
+        }
+    }
+
+    /**
      * 处理玩家对某步骤的选择。必须在客户端主线程调用。
      *
      * @param taskId 步骤 id（用于校验是否仍是当前步骤）

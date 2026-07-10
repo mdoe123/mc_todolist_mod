@@ -51,6 +51,16 @@ public class TodoListCommand {
                             .then(ClientCommandManager.argument("name", StringArgumentType.greedyString())
                                     .suggests(ChecklistSuggestionProvider.INSTANCE)
                                     .executes(TodoListCommand::runBack)))
+                    .then(ClientCommandManager.literal("true")
+                            .executes(ctx -> runChooseNoName(ctx, true))
+                            .then(ClientCommandManager.argument("name", StringArgumentType.greedyString())
+                                    .suggests(ChecklistSuggestionProvider.INSTANCE)
+                                    .executes(ctx -> runChoose(ctx, true))))
+                    .then(ClientCommandManager.literal("false")
+                            .executes(ctx -> runChooseNoName(ctx, false))
+                            .then(ClientCommandManager.argument("name", StringArgumentType.greedyString())
+                                    .suggests(ChecklistSuggestionProvider.INSTANCE)
+                                    .executes(ctx -> runChoose(ctx, false))))
                     .then(ClientCommandManager.literal("edit")
                             .executes(TodoListCommand::runEditNoName)
                             .then(ClientCommandManager.argument("name", StringArgumentType.greedyString())
@@ -197,6 +207,62 @@ public class TodoListCommand {
         MinecraftClient client = src.getClient();
         client.execute(() -> {
             exec.back();
+            if (exec.isFinished()) {
+                RUNNING.remove(name);
+            }
+        });
+        return 1;
+    }
+
+    /**
+     * /todolist true 或 /todolist false 无参版：对唯一正在执行的清单快捷确认/否决。
+     *
+     * @param ctx    命令上下文
+     * @param choice true 确认，false 否决
+     * @return 1 表示已执行，0 表示无清单或多个清单在执行
+     */
+    private static int runChooseNoName(CommandContext<FabricClientCommandSource> ctx, boolean choice) {
+        FabricClientCommandSource src = ctx.getSource();
+        if (RUNNING.isEmpty()) {
+            src.sendFeedback(Text.translatable("todolist.is.empty").formatted(Formatting.YELLOW));
+            return 0;
+        }
+        if (RUNNING.size() > 1) {
+            src.sendFeedback(Text.translatable("todolist.choose.ambiguous").formatted(Formatting.YELLOW));
+            return 0;
+        }
+        // 唯一正在执行的清单
+        Map.Entry<String, ChecklistExecutor> entry = RUNNING.entrySet().iterator().next();
+        final String name = entry.getKey();
+        final ChecklistExecutor exec = entry.getValue();
+        MinecraftClient client = src.getClient();
+        client.execute(() -> {
+            exec.chooseCurrent(choice);
+            if (exec.isFinished()) {
+                RUNNING.remove(name);
+            }
+        });
+        return 1;
+    }
+
+    /**
+     * /todolist true &lt;name&gt; 或 /todolist false &lt;name&gt;：对指定清单快捷确认/否决。
+     *
+     * @param ctx    命令上下文
+     * @param choice true 确认，false 否决
+     * @return 1 表示已执行，0 表示无正在执行的清单
+     */
+    private static int runChoose(CommandContext<FabricClientCommandSource> ctx, boolean choice) {
+        FabricClientCommandSource src = ctx.getSource();
+        String name = StringArgumentType.getString(ctx, "name");
+        ChecklistExecutor exec = RUNNING.get(name);
+        if (exec == null) {
+            src.sendFeedback(Text.translatable("todolist.back.not_running", name).formatted(Formatting.YELLOW));
+            return 0;
+        }
+        MinecraftClient client = src.getClient();
+        client.execute(() -> {
+            exec.chooseCurrent(choice);
             if (exec.isFinished()) {
                 RUNNING.remove(name);
             }

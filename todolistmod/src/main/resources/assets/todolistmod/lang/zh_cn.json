@@ -12,6 +12,7 @@
   "todolist.end.not_running": "没有正在执行的清单: %s",
   "todolist.end.ended": "已结束清单: %s",
   "todolist.back.not_running": "没有正在执行的清单: %s",
+  "todolist.choose.ambiguous": "当前有多个清单正在执行，请用 /todolist true <清单名> 或 /todolist false <清单名> 指定。",
   "todolist.edit.file_path": "清单文件路径: %s",
   "todolist.edit.not_found": "未找到清单: %s，已打开编辑器",
   "todolist.edit.click_to_open": "→ 点击打开编辑器",
