@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "todolistmod",
+  "version": "${version}",
+  "name": "Chat Todolist",
+  "description": "聊天栏流程式任务清单。把 .json 清单放到游戏目录的 todolist 文件夹，用 /todolist do <名称> 执行，点击文字确认选项。",
+  "authors": [
+    "mdoe123"
+  ],
+  "contact": {"homepage": "https://github.com/mdoe123"},
+  "license": "GPL-3.0",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.todolistmod.TodoListMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.14",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": ">=0.116.13+1.21.1"
+  }
+}

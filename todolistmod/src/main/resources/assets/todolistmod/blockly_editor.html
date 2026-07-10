@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>清单编辑器 - 块模式 · Chat Todolist</title>
+<style>
+  /* ---------- 主题变量（与 editor.html 保持一致） ---------- */
+  :root {
+    --bg: #ffffff;
+    --fg: #111111;
+    --muted: #666666;
+    --border: #cccccc;
+    --card-bg: #fafafa;
+    --hover: #eeeeee;
+    --btn-bg: #f5f5f5;
+    --btn-border: #bbbbbb;
+    --danger: #b00020;
+    --shadow: rgba(0,0,0,0.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1a1a1a;
+      --fg: #e0e0e0;
+      --muted: #999999;
+      --border: #444444;
+      --card-bg: #222222;
+      --hover: #333333;
+      --btn-bg: #2a2a2a;
+      --btn-border: #555555;
+      --danger: #ff6b6b;
+      --shadow: rgba(0,0,0,0.3);
+    }
+  }
+  html[data-theme="dark"] {
+    --bg: #1a1a1a;
+    --fg: #e0e0e0;
+    --muted: #999999;
+    --border: #444444;
+    --card-bg: #222222;
+    --hover: #333333;
+    --btn-bg: #2a2a2a;
+    --btn-border: #555555;
+    --danger: #ff6b6b;
+    --shadow: rgba(0,0,0,0.3);
+  }
+  html[data-theme="light"] {
+    --bg: #ffffff;
+    --fg: #111111;
+    --muted: #666666;
+    --border: #cccccc;
+    --card-bg: #fafafa;
+    --hover: #eeeeee;
+    --btn-bg: #f5f5f5;
+    --btn-border: #bbbbbb;
+    --danger: #b00020;
+    --shadow: rgba(0,0,0,0.04);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ---------- 工具栏 ---------- */
+  #toolbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    flex-wrap: wrap;
+  }
+  #toolbar .group { display: flex; align-items: center; gap: 6px; }
+  #toolbar .sep {
+    width: 1px;
+    height: 22px;
+    background: var(--border);
+    flex: 0 0 auto;
+  }
+  #toolbar .spacer { flex: 1 1 auto; }
+  #toolbar .status {
+    font-size: 12px;
+    color: var(--muted);
+    max-width: 40%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #toolbar .status.err { color: var(--danger); }
+  #toolbar .title {
+    font-weight: 600;
+    font-size: 14px;
+    white-space: nowrap;
+  }
+
+  /* ---------- 模式切换按钮组 ---------- */
+  .mode-switch {
+    display: inline-flex;
+    border: 1px solid var(--btn-border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .mode-switch button {
+    border: none;
+    border-radius: 0;
+    padding: 4px 12px;
+    background: var(--btn-bg);
+  }
+  .mode-switch button.active {
+    background: var(--fg);
+    color: var(--bg);
+  }
+
+  /* ---------- 通用控件 ---------- */
+  button, select, input {
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--fg);
+  }
+  button {
+    background: var(--btn-bg);
+    border: 1px solid var(--btn-border);
+    border-radius: 4px;
+    padding: 4px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button:hover { background: var(--hover); }
+  button:active { transform: translateY(1px); }
+  button.danger { color: var(--danger); border-color: var(--danger); }
+  button.danger:hover { background: var(--danger); color: #fff; }
+
+  input[type="text"], input[type="number"] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 6px;
+    outline: none;
+  }
+  input[type="text"]:focus, input[type="number"]:focus {
+    border-color: var(--fg);
+  }
+  input[readonly] { background: var(--card-bg); color: var(--muted); }
+
+  label.field { display: inline-flex; align-items: center; gap: 6px; }
+  label.field > span { color: var(--muted); white-space: nowrap; }
+  .compact { width: 80px; }
+
+  /* ---------- 主区域 ---------- */
+  #main {
+    flex: 1 1 auto;
+    display: flex;
+    min-height: 0;
+  }
+
+  /* ---------- 左侧文件列表侧栏 ---------- */
+  #sidebar {
+    flex: 0 0 220px;
+    border-right: 1px solid var(--border);
+    background: var(--card-bg);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  #sidebar .sidebar-head {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    flex: 0 0 auto;
+  }
+  #fileList {
+    flex: 1 1 auto;
+    overflow: auto;
+    padding: 6px;
+  }
+  .file-item {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-bottom: 4px;
+    border: 1px solid transparent;
+  }
+  .file-item:hover { background: var(--hover); }
+  .file-item.active {
+    background: var(--bg);
+    border-color: var(--btn-border);
+  }
+  .file-item .file-name {
+    font-weight: 600;
+    word-break: break-all;
+  }
+  .file-item .file-meta {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .empty-hint { font-size: 12px; color: var(--muted); padding: 8px; }
+
+  /* ---------- Blockly 工作区容器 ---------- */
+  #blockly-container {
+    flex: 1 1 auto;
+    position: relative;
+    min-width: 0;
+  }
+  #blockly-container .blocklyToolboxDiv {
+    background: var(--card-bg);
+    color: var(--fg);
+    border-right: 1px solid var(--border);
+  }
+  /* 工作区占位提示 */
+  #workspace-hint {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--muted);
+    font-size: 13px;
+    pointer-events: none;
+    text-align: center;
+  }
+  #workspace-hint.hidden { display: none; }
+</style>
+</head>
+<body>
+  <div id="toolbar">
+    <span class="title">清单编辑器 - 块模式</span>
+    <div class="sep"></div>
+    <div class="mode-switch">
+      <button id="modeFormBtn">表单</button>
+      <button id="modeBlockBtn" class="active">块</button>
+    </div>
+    <div class="sep"></div>
+    <div class="group">
+      <button id="saveBtn">保存</button>
+      <button id="newBtn">新建</button>
+      <button id="deleteBtn" class="danger">删除</button>
+    </div>
+    <div class="sep"></div>
+    <div class="group">
+      <label class="field"><span>name</span>
+        <input type="text" id="f-name" placeholder="清单名称" style="width:150px"></label>
+      <label class="field"><span>type</span>
+        <input type="text" value="flow" readonly style="width:70px"></label>
+      <label class="field"><span>maxSteps</span>
+        <input type="number" id="f-maxsteps" class="compact" placeholder="0=不限"></label>
+    </div>
+    <div class="spacer"></div>
+    <div class="group">
+      <button id="themeBtn" title="切换浅色/深色/跟随系统">☀/☾</button>
+      <span class="status" id="status"></span>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="sidebar">
+      <div class="sidebar-head">文件列表</div>
+      <div id="fileList"></div>
+    </div>
+    <div id="blockly-container">
+      <div id="workspace-hint">从左侧选择或新建一个清单开始编辑</div>
+    </div>
+  </div>
+
+<!-- Blockly 工具箱（XML 定义） -->
+<xml id="toolbox" style="display:none">
+  <category name="步骤">
+    <block type="interactive_task"></block>
+    <block type="terminal_task"></block>
+  </category>
+  <category name="动作">
+    <block type="jumpto"></block>
+    <block type="print"></block>
+    <block type="run"></block>
+    <block type="end"></block>
+  </category>
+</xml>
+
+<!-- Blockly 库（由本地 HTTP 服务器提供） -->
+<script src="/assets/blockly/blockly.min.js"></script>
+<script>
+"use strict";
+/* ============================================================
+ * 清单编辑器 - 块模式（Blockly）
+ * ------------------------------------------------------------
+ * 纯原生 HTML/CSS/JS + 本地 Blockly 库。通过 fetch 调用本地
+ * HTTP 服务器（仅绑定 127.0.0.1）读写游戏目录 todolist 文件夹
+ * 下的 .json 清单。
+ *
+ * 后端 API 契约（同源同端口）：
+ *   GET    /api/list                → [{"file","name","taskCount"}]
+ *   GET    /api/load?file=<name>    → 文件原始 JSON 文本
+ *   POST   /api/save?file=<name>    body=JSON 文本  → {"ok":true}
+ *   POST   /api/new?file=<name>     用默认模板创建     → {"ok":true}；已存在 409
+ *   DELETE /api/delete?file=<name>  删除文件           → {"ok":true}
+ *
+ * 清单数据结构（与 CHECKLIST_FORMAT.md 一致）：
+ *   { name, type:"flow", maxSteps, tasks:[ { id, desc,
+ *     option:{trueText,falseText}|null,
+ *     trueDo:[{type,...}], falseDo:[{type,...}] } ] }
+ *   动作 type 与字段：jumpto→id | print→text | run→command | end→message(可省略)
+ * ============================================================ */
+
+/* ============================================================
+ * 全局状态
+ * ============================================================ */
+var workspace = null;        // Blockly 工作区实例
+var currentFile = null;      // 当前打开的文件名（如 example.json）
+var files = [];              // /api/list 返回的文件列表
+var dirty = false;           // 工作区是否有未保存改动
+var suppressDirty = false;   // 程序化操作时抑制 dirty 标志
+
+var statusEl = document.getElementById('status');
+var fileListEl = document.getElementById('fileList');
+var nameInput = document.getElementById('f-name');
+var maxStepsInput = document.getElementById('f-maxsteps');
+var themeBtn = document.getElementById('themeBtn');
+var workspaceHint = document.getElementById('workspace-hint');
+
+/* ============================================================
+ * 一、自定义块定义（6 类）
+ * ============================================================ */
+
+// 交互步骤：玩家选择是/否后执行对应分支（紫色）
+Blockly.Blocks['interactive_task'] = {
+  init: function () {
+    this.appendDummyInput()
+        .appendField("交互步骤")
+        .appendField(new Blockly.FieldNumber(1), "id");
+    this.appendDummyInput()
+        .appendField("描述")
+        .appendField(new Blockly.FieldTextInput(""), "desc");
+    this.appendDummyInput()
+        .appendField("点是按钮文案")
+        .appendField(new Blockly.FieldTextInput("是"), "trueText");
+    this.appendDummyInput()
+        .appendField("点否按钮文案")
+        .appendField(new Blockly.FieldTextInput("否"), "falseText");
+    this.appendStatementInput("trueDo")
+        .setCheck(null)
+        .appendField("点是后");
+    this.appendStatementInput("falseDo")
+        .setCheck(null)
+        .appendField("点否后");
+    this.setPreviousStatement(false);
+    this.setNextStatement(false);
+    this.setColour("#8B5CF6");
+    this.setTooltip("交互步骤：玩家选择是/否后执行对应分支");
+  }
+};
+
+// 终止步骤：只显示描述，无按钮，清单立即结束（深紫）
+Blockly.Blocks['terminal_task'] = {
+  init: function () {
+    this.appendDummyInput()
+        .appendField("终止步骤")
+        .appendField(new Blockly.FieldNumber(1), "id");
+    this.appendDummyInput()
+        .appendField("描述")
+        .appendField(new Blockly.FieldTextInput(""), "desc");
+    this.setPreviousStatement(false);
+    this.setNextStatement(false);
+    this.setColour("#6D28D9");
+    this.setTooltip("终止步骤：只显示描述，无按钮，清单立即结束");
+  }
+};
+
+// 跳转到指定 id 步骤（蓝色）
+Blockly.Blocks['jumpto'] = {
+  init: function () {
+    this.appendDummyInput()
+        .appendField("跳转到")
+        .appendField(new Blockly.FieldNumber(1), "id");
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+    this.setColour("#3B82F6");
+    this.setTooltip("跳转到指定 id 的步骤");
+  }
+};
+
+// 输出一行文字（灰色）
+Blockly.Blocks['print'] = {
+  init: function () {
+    this.appendDummyInput()
+        .appendField("输出")
+        .appendField(new Blockly.FieldTextInput(""), "text");
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+    this.setColour("#6B7280");
+    this.setTooltip("在聊天栏输出一行文字");
+  }
+};
+
+// 以玩家身份发送指令（橙色）
+Blockly.Blocks['run'] = {
+  init: function () {
+    this.appendDummyInput()
+        .appendField("执行")
+        .appendField(new Blockly.FieldTextInput("/"), "command");
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+    this.setColour("#F59E0B");
+    this.setTooltip("以玩家身份发送指令");
+  }
+};
+
+// 结束整个清单（红色）
+Blockly.Blocks['end'] = {
+  init: function () {
+    this.appendDummyInput()
+        .appendField("结束清单")
+        .appendField(new Blockly.FieldTextInput(""), "message");
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+    this.setColour("#EF4444");
+    this.setTooltip("结束整个清单，message 可空");
+  }
+};
+
+/* ============================================================
+ * 二、Blockly 主题（跟随系统深浅色，块颜色保持彩色）
+ * ============================================================ */
+var blocklyThemeLight = null;
+var blocklyThemeDark = null;
+if (Blockly.Theme && Blockly.Theme.defineTheme) {
+  blocklyThemeLight = Blockly.Theme.defineTheme('clist_light', {
+    base: Blockly.Themes.Classic,
+    componentStyles: {
+      workspaceBackgroundColour: '#ffffff',
+      toolboxBackgroundColour: '#fafafa',
+      toolboxForegroundColour: '#111111',
+      flyoutBackgroundColour: '#f5f5f5',
+      flyoutForegroundColour: '#111111',
+      flyoutOpacity: 1
+    }
+  });
+  blocklyThemeDark = Blockly.Theme.defineTheme('clist_dark', {
+    base: Blockly.Themes.Classic,
+    componentStyles: {
+      workspaceBackgroundColour: '#1a1a1a',
+      toolboxBackgroundColour: '#222222',
+      toolboxForegroundColour: '#e0e0e0',
+      flyoutBackgroundColour: '#2a2a2a',
+      flyoutForegroundColour: '#e0e0e0',
+      flyoutOpacity: 1
+    }
+  });
+}
+
+/* ============================================================
+ * 三、初始化工作区
+ * ============================================================ */
+function initWorkspace() {
+  workspace = Blockly.inject('blockly-container', {
+    toolbox: document.getElementById('toolbox'),
+    trashcan: true,
+    move: { scrollbars: true, drag: true, wheel: true },
+    zoom: { controls: true, wheel: true, pinch: true }
+  });
+  // 监听任何变化以设置 dirty 标志
+  workspace.addChangeListener(function () {
+    if (!suppressDirty) {
+      dirty = true;
+    }
+  });
+  applyBlocklyTheme();
+}
+
+function applyBlocklyTheme() {
+  if (!workspace) return;
+  var dark = isDarkMode();
+  if (blocklyThemeDark && blocklyThemeLight) {
+    workspace.setTheme(dark ? blocklyThemeDark : blocklyThemeLight);
+  }
+  Blockly.svgResize(workspace);
+}
+
+function isDarkMode() {
+  var theme = document.documentElement.getAttribute('data-theme');
+  if (theme === 'dark') return true;
+  if (theme === 'light') return false;
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+/* ============================================================
+ * 四、Blockly → JSON 转换（generator）
+ * ============================================================ */
+
+// 工作区序列化为清单 JSON 对象
+function workspaceToJson() {
+  var topBlocks = workspace.getTopBlocks(true);
+  // 按 y 坐标排序
+  topBlocks.sort(function (a, b) {
+    return a.getRelativeToSurfaceXY().y - b.getRelativeToSurfaceXY().y;
+  });
+  // 过滤只保留 task 块
+  var tasks = [];
+  for (var i = 0; i < topBlocks.length; i++) {
+    var b = topBlocks[i];
+    if (b.type === 'interactive_task' || b.type === 'terminal_task') {
+      tasks.push(taskBlockToJson(b));
+    }
+  }
+  return {
+    name: nameInput.value || "",
+    type: "flow",
+    maxSteps: parseInt(maxStepsInput.value, 10) || 0,
+    tasks: tasks
+  };
+}
+
+// 单个 task 块 → JSON
+function taskBlockToJson(block) {
+  var id = parseInt(block.getFieldValue('id'), 10) || 0;
+  var desc = block.getFieldValue('desc') || "";
+  var task = { id: id, desc: desc };
+  if (block.type === 'terminal_task') {
+    task.option = null;
+    task.trueDo = [];
+    task.falseDo = [];
+  } else {
+    // interactive_task
+    task.option = {
+      trueText: block.getFieldValue('trueText') || "",
+      falseText: block.getFieldValue('falseText') || ""
+    };
+    task.trueDo = statementChainToArray('trueDo', block);
+    task.falseDo = statementChainToArray('falseDo', block);
+  }
+  return task;
+}
+
+// 从 task 块的指定 statement input 取链，收集为 action 数组
+function statementChainToArray(statementInputName, block) {
+  var arr = [];
+  var input = block.getInput(statementInputName);
+  var childBlock = input && input.connection ? input.connection.targetBlock() : null;
+  while (childBlock) {
+    arr.push(actionBlockToJson(childBlock));
+    childBlock = childBlock.getNextBlock();
+  }
+  return arr;
+}
+
+// 单个 action 块 → JSON（按 type 分支，end 的 message 为空时省略）
+function actionBlockToJson(block) {
+  if (block.type === 'jumpto') {
+    return { type: 'jumpto', id: parseInt(block.getFieldValue('id'), 10) || 0 };
+  } else if (block.type === 'print') {
+    return { type: 'print', text: block.getFieldValue('text') || "" };
+  } else if (block.type === 'run') {
+    return { type: 'run', command: block.getFieldValue('command') || "" };
+  } else if (block.type === 'end') {
+    var msg = block.getFieldValue('message') || "";
+    var o = { type: 'end' };
+    if (msg) { o.message = msg; }
+    return o;
+  }
+  return { type: block.type };
+}
+
+/* ============================================================
+ * 五、JSON → Blockly 转换（反序列化）
+ * ============================================================ */
+function jsonToWorkspace(jsonObj) {
+  suppressDirty = true;
+  try {
+    workspace.clear();
+    nameInput.value = jsonObj.name || "";
+    maxStepsInput.value = (jsonObj.maxSteps !== undefined && jsonObj.maxSteps !== null) ? jsonObj.maxSteps : 0;
+
+    var tasks = jsonObj.tasks || [];
+    var yPos = 20;
+    var xPos = 40;
+    for (var i = 0; i < tasks.length; i++) {
+      var t = tasks[i];
+      var isTerminal = (t.option === null);
+      var taskBlock = workspace.newBlock(isTerminal ? 'terminal_task' : 'interactive_task');
+      taskBlock.setFieldValue(String(t.id != null ? t.id : 1), 'id');
+      taskBlock.setFieldValue(t.desc || "", 'desc');
+      if (!isTerminal) {
+        taskBlock.setFieldValue((t.option && t.option.trueText) || "是", 'trueText');
+        taskBlock.setFieldValue((t.option && t.option.falseText) || "否", 'falseText');
+        // 构造 trueDo / falseDo 动作链
+        actionsToStatement(taskBlock, 'trueDo', t.trueDo || []);
+        actionsToStatement(taskBlock, 'falseDo', t.falseDo || []);
+      }
+      taskBlock.initSvg();
+      taskBlock.render();
+      taskBlock.moveBy(xPos, yPos);
+      yPos += taskBlock.getHeightWidth().height + 30;
+    }
+    workspace.render();
+    if (workspaceHint) workspaceHint.classList.add('hidden');
+  } finally {
+    suppressDirty = false;
+    dirty = false;
+  }
+}
+
+// 把 action 数组串接成 statement 链并连到 task 块
+function actionsToStatement(taskBlock, inputName, actions) {
+  if (!actions || !actions.length) return;
+  var prev = null;
+  for (var i = 0; i < actions.length; i++) {
+    var actionBlock = createActionBlock(actions[i]);
+    if (i === 0) {
+      // 第一个块连接到 task 块的 statement input
+      taskBlock.getInput(inputName).connection.connect(actionBlock.previousConnection);
+    } else {
+      prev.nextConnection.connect(actionBlock.previousConnection);
+    }
+    prev = actionBlock;
+  }
+}
+
+// 根据动作 JSON 创建对应 action 块并填字段
+function createActionBlock(action) {
+  var type = action.type || 'jumpto';
+  var b = workspace.newBlock(type);
+  if (type === 'jumpto') {
+    b.setFieldValue(String(action.id != null ? action.id : 1), 'id');
+  } else if (type === 'print') {
+    b.setFieldValue(action.text || "", 'text');
+  } else if (type === 'run') {
+    b.setFieldValue(action.command || "/", 'command');
+  } else if (type === 'end') {
+    b.setFieldValue(action.message || "", 'message');
+  }
+  b.initSvg();
+  b.render();
+  return b;
+}
+
+/* ============================================================
+ * 六、保存前校验
+ * ============================================================ */
+function validateWorkspace() {
+  var name = nameInput.value || "";
+  if (!name.trim()) {
+    return { ok: false, error: '清单名称(name)不能为空' };
+  }
+  var topBlocks = workspace.getTopBlocks(true);
+  // 收集所有 task 块 id（用于唯一性校验与 jumpto 目标存在性校验）
+  var taskIdSet = {};
+  var taskIds = [];
+  for (var i = 0; i < topBlocks.length; i++) {
+    var b = topBlocks[i];
+    if (b.type === 'interactive_task' || b.type === 'terminal_task') {
+      var id = parseInt(b.getFieldValue('id'), 10);
+      if (taskIdSet.hasOwnProperty(id)) {
+        return { ok: false, error: '步骤 id ' + id + ' 重复' };
+      }
+      taskIdSet[id] = true;
+      taskIds.push(id);
+    }
+  }
+  // 遍历所有 jumpto 块，校验目标 id 存在
+  var allBlocks = workspace.getAllBlocks();
+  for (var j = 0; j < allBlocks.length; j++) {
+    var blk = allBlocks[j];
+    if (blk.type === 'jumpto') {
+      var targetId = parseInt(blk.getFieldValue('id'), 10);
+      if (!taskIdSet.hasOwnProperty(targetId)) {
+        return { ok: false, error: 'jumpto 目标 id ' + targetId + ' 不存在' };
+      }
+    }
+  }
+  return { ok: true };
+}
+
+/* ============================================================
+ * 七、文件列表 / 加载 / 保存 / 新建 / 删除
+ * ============================================================ */
+async function refreshList() {
+  try {
+    var res = await fetch('/api/list');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    files = await res.json();
+  } catch (e) {
+    files = [];
+    showStatus('获取文件列表失败: ' + e.message, true);
+  }
+  renderFileList();
+  return files;
+}
+
+function renderFileList() {
+  if (!files.length) {
+    fileListEl.innerHTML = '<div class="empty-hint">暂无文件，点击「新建」创建</div>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < files.length; i++) {
+    var f = files[i];
+    var active = (f.file === currentFile) ? ' active' : '';
+    html += '<div class="file-item' + active + '" data-file="' + escapeAttr(f.file) + '">' +
+      '<span class="file-name">' + escapeHtml(f.file) + '</span>' +
+      '<span class="file-meta">' + escapeHtml(f.name || '') + ' · ' + (f.taskCount != null ? f.taskCount : '?') + ' 步</span>' +
+      '</div>';
+  }
+  fileListEl.innerHTML = html;
+}
+
+fileListEl.addEventListener('click', function (e) {
+  var item = e.target.closest('.file-item');
+  if (!item) return;
+  loadFile(item.dataset.file);
+});
+
+async function loadFile(filename) {
+  if (!filename) return;
+  // 有未保存改动时提示
+  if (dirty && !confirm('有未保存改动，是否丢弃并加载 ' + filename + ' ？')) return;
+  try {
+    var res = await fetch('/api/load?file=' + encodeURIComponent(filename));
+    if (!res.ok) {
+      var t = await res.text();
+      throw new Error(t || ('HTTP ' + res.status));
+    }
+    var text = await res.text();
+    var data = JSON.parse(text);
+    jsonToWorkspace(data);
+    currentFile = filename;
+    dirty = false;
+    renderFileList();
+    if (workspaceHint) workspaceHint.classList.add('hidden');
+    showStatus('已加载 ' + filename);
+  } catch (e) {
+    showStatus('加载失败: ' + e.message, true);
+  }
+}
+
+async function save() {
+  // 1. 校验
+  var v = validateWorkspace();
+  if (!v.ok) {
+    alert(v.error);
+    return;
+  }
+  if (!currentFile) {
+    showStatus('未加载文件，无法保存', true);
+    return;
+  }
+  // 2. 生成对象 → 字符串
+  var jsonObj = workspaceToJson();
+  var json = JSON.stringify(jsonObj, null, 2);
+  // 3. POST 保存
+  try {
+    var res = await fetch('/api/save?file=' + encodeURIComponent(currentFile), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: json
+    });
+    if (!res.ok) {
+      var t = await res.text();
+      throw new Error(t || ('HTTP ' + res.status));
+    }
+    dirty = false;
+    showStatus('已保存到 ' + currentFile);
+    await refreshList();
+  } catch (e) {
+    showStatus('保存失败: ' + e.message, true);
+  }
+}
+
+async function newFile() {
+  var name = prompt('输入新清单文件名（不带 .json 后缀会自动补全）:');
+  if (!name) return;
+  if (!/\.json$/i.test(name)) name += '.json';
+  if (/[\\\/]/.test(name)) { showStatus('文件名不能包含路径分隔符', true); return; }
+  try {
+    var res = await fetch('/api/new?file=' + encodeURIComponent(name), { method: 'POST' });
+    if (res.status === 409) { showStatus('文件已存在: ' + name, true); return; }
+    if (!res.ok) {
+      var t = await res.text();
+      throw new Error(t || ('HTTP ' + res.status));
+    }
+    await refreshList();
+    await loadFile(name);
+    showStatus('已创建 ' + name);
+  } catch (e) {
+    showStatus('创建失败: ' + e.message, true);
+  }
+}
+
+async function deleteFile() {
+  if (!currentFile) { showStatus('未加载文件', true); return; }
+  if (!confirm('确认删除文件 ' + currentFile + ' ？此操作不可恢复。')) return;
+  try {
+    var res = await fetch('/api/delete?file=' + encodeURIComponent(currentFile), { method: 'DELETE' });
+    if (!res.ok) {
+      var t = await res.text();
+      throw new Error(t || ('HTTP ' + res.status));
+    }
+    showStatus('已删除 ' + currentFile);
+    currentFile = null;
+    dirty = false;
+    suppressDirty = true;
+    try { workspace.clear(); } finally { suppressDirty = false; }
+    nameInput.value = "";
+    maxStepsInput.value = "";
+    if (workspaceHint) workspaceHint.classList.remove('hidden');
+    await refreshList();
+  } catch (e) {
+    showStatus('删除失败: ' + e.message, true);
+  }
+}
+
+/* ============================================================
+ * 八、模式切换（表单 / 块）
+ * ============================================================ */
+document.getElementById('modeFormBtn').addEventListener('click', function () {
+  if (dirty && !confirm('有未保存改动，是否丢弃？')) return;
+  var target = '/';
+  if (currentFile) {
+    target = '/?mode=form&file=' + encodeURIComponent(currentFile);
+  } else {
+    target = '/?mode=form';
+  }
+  location.href = target;
+});
+
+/* ============================================================
+ * 九、输入框变化也标记 dirty
+ * ============================================================ */
+nameInput.addEventListener('input', function () { dirty = true; });
+maxStepsInput.addEventListener('input', function () { dirty = true; });
+
+/* ============================================================
+ * 十、状态提示
+ * ============================================================ */
+var statusTimer = null;
+function showStatus(msg, isErr) {
+  statusEl.textContent = msg;
+  statusEl.classList.toggle('err', !!isErr);
+  if (statusTimer) clearTimeout(statusTimer);
+  statusTimer = setTimeout(function () { statusEl.textContent = ''; }, 4000);
+}
+
+/* ============================================================
+ * 十一、浅/深色主题（与 editor.html 一致）
+ * ============================================================ */
+var themeMode = localStorage.getItem('theme') || 'auto'; // auto | light | dark
+function applyTheme() {
+  if (themeMode === 'light' || themeMode === 'dark') {
+    document.documentElement.setAttribute('data-theme', themeMode);
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+  themeBtn.textContent = themeMode === 'dark' ? '☾ 深' : themeMode === 'light' ? '☀ 浅' : '☀/☾ 自';
+  applyBlocklyTheme();
+}
+themeBtn.addEventListener('click', function () {
+  themeMode = themeMode === 'auto' ? 'light' : themeMode === 'light' ? 'dark' : 'auto';
+  localStorage.setItem('theme', themeMode);
+  applyTheme();
+});
+
+/* ============================================================
+ * 十二、HTML 转义
+ * ============================================================ */
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function escapeAttr(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/* ============================================================
+ * 十三、窗口尺寸变化时同步 Blockly
+ * ============================================================ */
+window.addEventListener('resize', function () {
+  if (workspace) Blockly.svgResize(workspace);
+});
+
+/* ============================================================
+ * 十四、按钮绑定
+ * ============================================================ */
+document.getElementById('saveBtn').addEventListener('click', save);
+document.getElementById('newBtn').addEventListener('click', newFile);
+document.getElementById('deleteBtn').addEventListener('click', deleteFile);
+
+/* ============================================================
+ * 十五、初始化
+ * ============================================================ */
+(async function init() {
+  applyTheme();
+  initWorkspace();
+  await refreshList();
+  var params = new URLSearchParams(location.search);
+  var file = params.get('file');
+  if (file) {
+    await loadFile(file);
+  } else if (files.length) {
+    await loadFile(files[0].file);
+  } else {
+    showStatus('todolist 目录为空，点击「新建」创建清单');
+  }
+})();
+</script>
+</body>
+</html>

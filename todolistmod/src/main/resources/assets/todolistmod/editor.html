@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>清单编辑器 · Chat Todolist</title>
+<style>
+  /* ---------- 主题变量 ---------- */
+  :root {
+    --bg: #ffffff;
+    --fg: #111111;
+    --muted: #666666;
+    --border: #cccccc;
+    --card-bg: #fafafa;
+    --hover: #eeeeee;
+    --btn-bg: #f5f5f5;
+    --btn-border: #bbbbbb;
+    --danger: #b00020;
+    --shadow: rgba(0,0,0,0.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1a1a1a;
+      --fg: #e0e0e0;
+      --muted: #999999;
+      --border: #444444;
+      --card-bg: #222222;
+      --hover: #333333;
+      --btn-bg: #2a2a2a;
+      --btn-border: #555555;
+      --danger: #ff6b6b;
+      --shadow: rgba(0,0,0,0.3);
+    }
+  }
+  html[data-theme="dark"] {
+    --bg: #1a1a1a;
+    --fg: #e0e0e0;
+    --muted: #999999;
+    --border: #444444;
+    --card-bg: #222222;
+    --hover: #333333;
+    --btn-bg: #2a2a2a;
+    --btn-border: #555555;
+    --danger: #ff6b6b;
+    --shadow: rgba(0,0,0,0.3);
+  }
+  html[data-theme="light"] {
+    --bg: #ffffff;
+    --fg: #111111;
+    --muted: #666666;
+    --border: #cccccc;
+    --card-bg: #fafafa;
+    --hover: #eeeeee;
+    --btn-bg: #f5f5f5;
+    --btn-border: #bbbbbb;
+    --danger: #b00020;
+    --shadow: rgba(0,0,0,0.04);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ---------- 工具栏 ---------- */
+  #toolbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  #toolbar .group { display: flex; align-items: center; gap: 6px; }
+  #toolbar .sep {
+    width: 1px;
+    height: 22px;
+    background: var(--border);
+    flex: 0 0 auto;
+  }
+  #toolbar .spacer { flex: 1 1 auto; }
+  #toolbar .status {
+    font-size: 12px;
+    color: var(--muted);
+    max-width: 40%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #toolbar .status.err { color: var(--danger); }
+
+  /* ---------- 模式切换按钮组（表单/块） ---------- */
+  #toolbar .toggle-group { display: flex; align-items: center; }
+  #toolbar .toggle-group button {
+    border-radius: 0;
+    margin-left: -1px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+  }
+  #toolbar .toggle-group button:first-child { border-radius: 4px 0 0 4px; margin-left: 0; }
+  #toolbar .toggle-group button:last-child { border-radius: 0 4px 4px 0; }
+  /* active 态反色，保持黑白极简风格 */
+  #toolbar .toggle-group button.active {
+    background: var(--fg);
+    color: var(--bg);
+    border-color: var(--fg);
+  }
+  #toolbar .toggle-group button.active:hover { background: var(--fg); }
+
+  /* ---------- 通用控件 ---------- */
+  button, select, input, textarea {
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--fg);
+  }
+  button {
+    background: var(--btn-bg);
+    border: 1px solid var(--btn-border);
+    border-radius: 4px;
+    padding: 4px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button:hover { background: var(--hover); }
+  button:active { transform: translateY(1px); }
+  button.danger { color: var(--danger); border-color: var(--danger); }
+  button.danger:hover { background: var(--danger); color: #fff; }
+
+  input[type="text"], input[type="number"], textarea, select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 6px;
+    outline: none;
+  }
+  input[type="text"]:focus, input[type="number"]:focus, textarea:focus, select:focus {
+    border-color: var(--fg);
+  }
+  input[readonly] { background: var(--card-bg); color: var(--muted); }
+  textarea { resize: vertical; font-family: inherit; width: 100%; }
+  select { cursor: pointer; }
+
+  /* ---------- 主区域 ---------- */
+  #main {
+    flex: 1 1 auto;
+    display: flex;
+    min-height: 0;
+  }
+  .pane { overflow: auto; padding: 12px; }
+  #formPane { flex: 0 0 60%; border-right: 1px solid var(--border); }
+  #previewPane { flex: 1 1 40%; background: var(--card-bg); }
+  #previewPane h3 {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  #preview {
+    margin: 0;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: var(--fg);
+  }
+
+  /* ---------- 表单卡片 ---------- */
+  .card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    background: var(--bg);
+  }
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    gap: 8px;
+  }
+  .card-title { font-weight: 600; }
+  .row { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+  .row.block { flex-direction: column; align-items: stretch; gap: 4px; }
+  .row.block label { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+  label.field { display: inline-flex; align-items: center; gap: 6px; }
+  label.field > span { color: var(--muted); min-width: 70px; }
+  .row.block label > span { color: var(--muted); }
+  .grow { flex: 1 1 auto; }
+  .compact { width: 90px; }
+
+  /* ---------- 任务卡片 ---------- */
+  .task-card { margin-bottom: 14px; }
+  .task-card .card-head .left { display: flex; align-items: center; gap: 8px; }
+  .branch {
+    margin-top: 8px;
+    border-top: 1px dashed var(--border);
+    padding-top: 8px;
+  }
+  .branch-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .actions { display: flex; flex-direction: column; gap: 6px; }
+  .action-card {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px 8px;
+    background: var(--card-bg);
+  }
+  .action-card .grow { min-width: 120px; }
+  .empty-hint { font-size: 12px; color: var(--muted); padding: 2px 4px; }
+
+  .add-task-btn { margin-top: 4px; width: 100%; padding: 8px; border-style: dashed; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+</style>
+</head>
+<body>
+  <div id="toolbar">
+    <div class="group">
+      <select id="fileSelect" title="选择文件"></select>
+      <button id="openBtn" title="打开选中的清单">打开</button>
+    </div>
+    <div class="sep"></div>
+    <div class="group">
+      <button id="newBtn">新建</button>
+      <button id="saveBtn">保存</button>
+      <button id="deleteBtn" class="danger">删除</button>
+    </div>
+    <div class="sep"></div>
+    <div class="toggle-group" id="modeSwitch" title="切换编辑模式">
+      <button id="modeFormBtn" class="active" title="表单模式（当前）">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        表单
+      </button>
+      <button id="modeBlockBtn" title="切换到块模式（积木编辑）">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        块
+      </button>
+    </div>
+    <div class="sep"></div>
+    <div class="group">
+      <button id="themeBtn" title="切换浅色/深色/跟随系统">☀/☾</button>
+    </div>
+    <div class="spacer"></div>
+    <div class="group">
+      <span class="status" id="status"></span>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="formPane" class="pane">
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">清单属性</span>
+          <span class="hint" id="currentFileHint" style="margin:0">未加载文件</span>
+        </div>
+        <div class="row">
+          <label class="field grow"><span>name</span>
+            <input type="text" id="f-name" data-field="name" class="grow" placeholder="清单名称">
+          </label>
+        </div>
+        <div class="row">
+          <label class="field"><span>type</span>
+            <input type="text" value="flow" readonly style="width:90px">
+          </label>
+          <label class="field"><span>maxSteps</span>
+            <input type="number" id="f-maxsteps" data-field="maxSteps" class="compact" placeholder="0=不限">
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <span class="card-title">任务步骤</span>
+        </div>
+        <div id="tasksContainer"></div>
+        <button class="add-task-btn" id="addTaskBtn">+ 添加任务</button>
+      </div>
+    </div>
+
+    <div id="previewPane" class="pane">
+      <h3>JSON 实时预览</h3>
+      <pre id="preview"></pre>
+    </div>
+  </div>
+
+<script>
+"use strict";
+/* ============================================================
+ * 清单编辑器 — 前端单页应用
+ * ------------------------------------------------------------
+ * 纯原生 HTML/CSS/JS，无外部依赖。通过 fetch 调用本地 HTTP 服务器
+ * （仅绑定 127.0.0.1）读写游戏目录 todolist 文件夹下的 .json 清单。
+ *
+ * 后端 API 契约（同源同端口）：
+ *   GET    /                        返回本页面
+ *   GET    /api/list                → [{"file","name","taskCount"}]
+ *   GET    /api/load?file=<name>    → 文件原始 JSON 文本
+ *   POST   /api/save?file=<name>    body=JSON 文本  → {"ok":true}
+ *   POST   /api/new?file=<name>     用默认模板创建     → {"ok":true}；已存在 409
+ *   DELETE /api/delete?file=<name>  删除文件           → {"ok":true}
+ *   （file 值均为 .json 文件名，URL 中 encodeURIComponent）
+ *
+ * 清单数据结构（与游戏内 Checklist/ChecklistTask/TaskOption/ChecklistAction 一致）：
+ *   { name, type:"flow", maxSteps, tasks:[ { id, desc, option:{trueText,falseText}|null,
+ *       trueDo:[{type,...}], falseDo:[{type,...}] } ] }
+ *   动作 type 与字段：jumpto→id | print→text | run→command | end→message(可省略)
+ *
+ * 前端 model 中转表示：option 拆为 isTerminal + trueText/falseText；
+ *   动作保存全部字段，toJson() 时只写回 type 对应字段。
+ * ============================================================ */
+/* ============================================================
+ * 全局状态
+ * ============================================================ */
+var model = emptyModel();   // 当前编辑的清单数据（前端中间表示）
+var currentFile = null;     // 当前打开的文件名（如 example.json）
+var files = [];             // /api/list 返回的文件列表
+var dirty = false;          // 未保存改动标志：input 变化置 true，保存成功置 false
+
+var formEl     = document.getElementById('formPane');
+var previewEl  = document.getElementById('preview');
+var fileSelect = document.getElementById('fileSelect');
+var statusEl   = document.getElementById('status');
+var fileHintEl = document.getElementById('currentFileHint');
+var themeBtn   = document.getElementById('themeBtn');
+
+/* ============================================================
+ * 模型构造 / 序列化
+ * ============================================================ */
+function emptyModel() {
+  return { name: "", type: "flow", maxSteps: 30, tasks: [] };
+}
+
+function newTask() {
+  var nextId = model.tasks.length ? (Number(model.tasks[model.tasks.length - 1].id) || 0) + 1 : 1;
+  return {
+    id: nextId,
+    desc: "",
+    isTerminal: false,
+    trueText: "是",
+    falseText: "否",
+    trueDo: [],
+    falseDo: []
+  };
+}
+
+function newAction() {
+  return { type: "jumpto", id: 1, text: "", command: "", message: "" };
+}
+
+/* 把后端原始 JSON 转成前端 model */
+function fromJson(data) {
+  model = {
+    name: data.name || "",
+    type: "flow",
+    maxSteps: (data.maxSteps !== undefined && data.maxSteps !== null) ? data.maxSteps : 30,
+    tasks: (data.tasks || []).map(function (t) {
+      return {
+        id: t.id,
+        desc: t.desc || "",
+        isTerminal: (t.option === null),
+        trueText:  t.option ? (t.option.trueText  || "") : "",
+        falseText: t.option ? (t.option.falseText || "") : "",
+        trueDo:  (t.trueDo  || []).map(actionFromJson),
+        falseDo: (t.falseDo || []).map(actionFromJson)
+      };
+    })
+  };
+}
+
+function actionFromJson(a) {
+  return {
+    type: a.type || "jumpto",
+    id: a.id,
+    text: a.text || "",
+    command: a.command || "",
+    message: a.message || ""
+  };
+}
+
+/* 把 model 序列化为与游戏一致的清单对象 */
+function toJson() {
+  return {
+    name: model.name || "",
+    type: "flow",
+    maxSteps: parseInt(model.maxSteps, 10) || 0,
+    tasks: model.tasks.map(function (t) {
+      var task = {
+        id: parseInt(t.id, 10) || 0,
+        desc: t.desc || ""
+      };
+      if (t.isTerminal) {
+        task.option = null;
+      } else {
+        task.option = { trueText: t.trueText || "", falseText: t.falseText || "" };
+      }
+      task.trueDo  = (t.trueDo  || []).map(actionToJson);
+      task.falseDo = (t.falseDo || []).map(actionToJson);
+      return task;
+    })
+  };
+}
+
+function actionToJson(a) {
+  var o = { type: a.type };
+  if (a.type === "jumpto") {
+    o.id = parseInt(a.id, 10) || 0;
+  } else if (a.type === "print") {
+    o.text = a.text || "";
+  } else if (a.type === "run") {
+    o.command = a.command || "";
+  } else if (a.type === "end") {
+    // message 可省略：仅在非空时写入
+    if (a.message) o.message = a.message;
+  }
+  return o;
+}
+
+/* ============================================================
+ * 渲染
+ * ============================================================ */
+function render() {
+  document.getElementById('f-name').value = model.name || "";
+  document.getElementById('f-maxsteps').value = (model.maxSteps !== undefined && model.maxSteps !== null) ? model.maxSteps : 0;
+
+  var container = document.getElementById('tasksContainer');
+  if (!model.tasks.length) {
+    container.innerHTML = '<div class="empty-hint">暂无任务，点击下方按钮添加。</div>';
+  } else {
+    container.innerHTML = model.tasks.map(renderTask).join('');
+  }
+  updatePreview();
+}
+
+function renderTask(t, ti) {
+  var optHtml = t.isTerminal
+    ? '<div class="empty-hint">终止步骤：不显示按钮，展示描述后即结束。</div>'
+    : '<div class="row">' +
+        '<label class="field grow"><span>trueText</span>' +
+          '<input type="text" data-field="trueText" data-ti="' + ti + '" class="grow" value="' + escapeAttr(t.trueText) + '"></label>' +
+        '<label class="field grow"><span>falseText</span>' +
+          '<input type="text" data-field="falseText" data-ti="' + ti + '" class="grow" value="' + escapeAttr(t.falseText) + '"></label>' +
+      '</div>';
+
+  return '' +
+  '<div class="card task-card" data-ti="' + ti + '">' +
+    '<div class="card-head">' +
+      '<div class="left"><span class="card-title">任务 #' + (ti + 1) + '</span>' +
+        '<label class="field"><span>id</span>' +
+          '<input type="number" data-field="id" data-ti="' + ti + '" class="compact" value="' + escapeAttr(t.id) + '"></label></div>' +
+      '<button class="danger" data-action="del-task" data-ti="' + ti + '">删除任务</button>' +
+    '</div>' +
+    '<div class="row block"><label><span>desc</span>' +
+      '<textarea data-field="desc" data-ti="' + ti + '" rows="2">' + escapeHtml(t.desc) + '</textarea></label></div>' +
+    '<div class="row">' +
+      '<label class="field"><input type="checkbox" data-field="isTerminal" data-ti="' + ti + '"' + (t.isTerminal ? ' checked' : '') + '>' +
+        '<span style="min-width:auto">终止步骤（无按钮，option=null）</span></label>' +
+    '</div>' +
+    optHtml +
+    renderBranch(ti, 'true',  'trueDo  （点「是」后依次执行）', t.trueDo) +
+    renderBranch(ti, 'false', 'falseDo （点「否」后依次执行）', t.falseDo) +
+  '</div>';
+}
+
+function renderBranch(ti, branch, label, arr) {
+  var inner = arr.length
+    ? arr.map(function (a, ai) { return renderAction(ti, branch, ai, a); }).join('')
+    : '<div class="empty-hint">（无动作）</div>';
+  return '' +
+    '<div class="branch">' +
+      '<div class="branch-head"><span>' + label + '</span>' +
+        '<button data-action="add-action" data-ti="' + ti + '" data-branch="' + branch + '">+ 添加动作</button></div>' +
+      '<div class="actions" data-branch="' + branch + '">' + inner + '</div>' +
+    '</div>';
+}
+
+function renderAction(ti, branch, ai, a) {
+  var fieldHtml;
+  if (a.type === "jumpto") {
+    fieldHtml = '<label class="field"><span>id</span>' +
+      '<input type="number" data-field="aid" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="compact" value="' + escapeAttr(a.id) + '"></label>';
+  } else if (a.type === "print") {
+    fieldHtml = '<label class="field grow"><span>text</span>' +
+      '<input type="text" data-field="atext" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="grow" value="' + escapeAttr(a.text) + '"></label>';
+  } else if (a.type === "run") {
+    fieldHtml = '<label class="field grow"><span>command</span>' +
+      '<input type="text" data-field="acommand" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="grow" value="' + escapeAttr(a.command) + '"></label>';
+  } else if (a.type === "end") {
+    fieldHtml = '<label class="field grow"><span>message</span>' +
+      '<input type="text" data-field="amessage" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="grow" value="' + escapeAttr(a.message) + '" placeholder="可空"></label>';
+  } else {
+    fieldHtml = '<span class="empty-hint">未知动作类型</span>';
+  }
+  return '' +
+  '<div class="action-card">' +
+    '<select data-field="atype" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '">' +
+      '<option value="jumpto"' + (a.type === "jumpto" ? " selected" : "") + '>jumpto</option>' +
+      '<option value="print"'   + (a.type === "print"   ? " selected" : "") + '>print</option>' +
+      '<option value="run"'     + (a.type === "run"     ? " selected" : "") + '>run</option>' +
+      '<option value="end"'     + (a.type === "end"     ? " selected" : "") + '>end</option>' +
+    '</select>' +
+    fieldHtml +
+    '<button class="danger" data-action="del-action" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '">删除</button>' +
+  '</div>';
+}
+
+function updatePreview() {
+  try {
+    previewEl.textContent = JSON.stringify(toJson(), null, 2);
+  } catch (e) {
+    previewEl.textContent = '序列化失败: ' + e.message;
+  }
+}
+
+/* ============================================================
+ * 表单事件（事件委托：输入即时更新 model + 预览；结构变更重绘）
+ * ============================================================ */
+formEl.addEventListener('input', onFormChange);
+formEl.addEventListener('change', onFormChange);
+formEl.addEventListener('click', onFormClick);
+
+function onFormChange(e) {
+  var el = e.target;
+  var field = el.dataset.field;
+  if (!field) return;
+  dirty = true;   // 任何表单字段变化都标记为未保存
+
+  var ti   = el.dataset.ti   !== undefined ? parseInt(el.dataset.ti, 10)   : null;
+  var ai   = el.dataset.ai   !== undefined ? parseInt(el.dataset.ai, 10)   : null;
+  var branch = el.dataset.branch;
+
+  if (field === "name") {
+    model.name = el.value;
+  } else if (field === "maxSteps") {
+    model.maxSteps = parseInt(el.value, 10) || 0;
+  } else if (ti !== null) {
+    var t = model.tasks[ti];
+    if (!t) return;
+    if (field === "id") {
+      t.id = parseInt(el.value, 10) || 0;
+    } else if (field === "desc") {
+      t.desc = el.value;
+    } else if (field === "trueText") {
+      t.trueText = el.value;
+    } else if (field === "falseText") {
+      t.falseText = el.value;
+    } else if (field === "isTerminal") {
+      t.isTerminal = el.checked;
+      render();   // 切换终止步骤需重绘以显示/隐藏 trueText、falseText
+      return;
+    } else if (field === "atype") {
+      var arr = branch === "true" ? t.trueDo : t.falseDo;
+      if (arr[ai]) arr[ai].type = el.value;
+      render();   // type 切换需重绘对应字段
+      return;
+    } else if (field === "aid") {
+      getArr(t, branch)[ai].id = parseInt(el.value, 10) || 0;
+    } else if (field === "atext") {
+      getArr(t, branch)[ai].text = el.value;
+    } else if (field === "acommand") {
+      getArr(t, branch)[ai].command = el.value;
+    } else if (field === "amessage") {
+      getArr(t, branch)[ai].message = el.value;
+    }
+  }
+  updatePreview();
+}
+
+function getArr(t, branch) {
+  return branch === "true" ? t.trueDo : t.falseDo;
+}
+
+function onFormClick(e) {
+  var btn = e.target.closest('button[data-action]');
+  if (!btn) return;
+  var action = btn.dataset.action;
+  var ti = parseInt(btn.dataset.ti, 10);
+  var branch = btn.dataset.branch;
+  var ai = btn.dataset.ai !== undefined ? parseInt(btn.dataset.ai, 10) : null;
+
+  if (action === "del-task") {
+    if (!confirm('删除任务 #' + (ti + 1) + ' ？')) return;
+    model.tasks.splice(ti, 1);
+    dirty = true;
+    render();
+  } else if (action === "add-action") {
+    var t = model.tasks[ti];
+    if (!t) return;
+    getArr(t, branch).push(newAction());
+    dirty = true;
+    render();
+  } else if (action === "del-action") {
+    var t2 = model.tasks[ti];
+    if (!t2) return;
+    getArr(t2, branch).splice(ai, 1);
+    dirty = true;
+    render();
+  }
+}
+
+document.getElementById('addTaskBtn').addEventListener('click', function () {
+  model.tasks.push(newTask());
+  dirty = true;
+  render();
+  // 滚动到底部新任务
+  var container = document.getElementById('tasksContainer');
+  formEl.scrollTop = formEl.scrollHeight;
+});
+
+/* ============================================================
+ * 工具栏：文件选择 / 新建 / 保存 / 删除
+ * ============================================================ */
+fileSelect.addEventListener('change', function () {
+  if (fileSelect.value) loadFile(fileSelect.value);
+});
+document.getElementById('openBtn').addEventListener('click', function () {
+  if (fileSelect.value) loadFile(fileSelect.value);
+  else showStatus('请先选择文件', true);
+});
+document.getElementById('saveBtn').addEventListener('click', save);
+document.getElementById('newBtn').addEventListener('click', newFile);
+document.getElementById('deleteBtn').addEventListener('click', deleteFile);
+
+/* 模式切换：点击「块」跳转到块模式编辑器（blockly_editor.html） */
+document.getElementById('modeBlockBtn').addEventListener('click', function () {
+  // 切换前检查未保存改动
+  if (dirty) {
+    if (!confirm('有未保存改动，是否丢弃？')) return;
+  }
+  var params = new URLSearchParams();
+  params.set('mode', 'block');
+  if (currentFile) params.set('file', currentFile);
+  location.href = '/?' + params.toString();
+});
+/* 「表单」按钮：当前已在表单模式，点击无操作 */
+document.getElementById('modeFormBtn').addEventListener('click', function () {
+  /* 当前即为表单模式，保持 active 态，无操作 */
+});
+
+async function refreshList() {
+  try {
+    var res = await fetch('/api/list');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    files = await res.json();
+  } catch (e) {
+    files = [];
+    showStatus('获取文件列表失败: ' + e.message, true);
+  }
+  var opts = '<option value="">— 选择文件 —</option>';
+  for (var i = 0; i < files.length; i++) {
+    var f = files[i];
+    opts += '<option value="' + escapeAttr(f.file) + '">' +
+            escapeHtml(f.file) + ' · ' + escapeHtml(f.name) + ' (' + f.taskCount + ')</option>';
+  }
+  fileSelect.innerHTML = opts;
+  return files;
+}
+
+async function loadFile(filename) {
+  if (!filename) return;
+  try {
+    var res = await fetch('/api/load?file=' + encodeURIComponent(filename));
+    if (!res.ok) {
+      var t = await res.text();
+      throw new Error(t || ('HTTP ' + res.status));
+    }
+    var text = await res.text();
+    var data = JSON.parse(text);
+    fromJson(data);
+    currentFile = filename;
+    fileSelect.value = filename;
+    fileHintEl.textContent = '当前文件: ' + filename;
+    render();
+    showStatus('已加载 ' + filename);
+    dirty = false;   // 新文件加载完成，重置未保存标志
+  } catch (e) {
+    showStatus('加载失败: ' + e.message, true);
+  }
+}
+
+async function save() {
+  if (!currentFile) {
+    showStatus('未加载文件，无法保存', true);
+    return;
+  }
+  var json = JSON.stringify(toJson(), null, 2);
+  try {
+    var res = await fetch('/api/save?file=' + encodeURIComponent(currentFile), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: json
+    });
+    if (!res.ok) {
+      var t = await res.text();
+      throw new Error(t || ('HTTP ' + res.status));
+    }
+    showStatus('已保存到 ' + currentFile);
+    dirty = false;   // 保存成功，清除未保存标志
+    await refreshList();
+    fileSelect.value = currentFile;
+  } catch (e) {
+    showStatus('保存失败: ' + e.message, true);
+  }
+}
+
+async function newFile() {
+  var name = prompt('输入新清单文件名（不带 .json 后缀会自动补全）:');
+  if (!name) return;
+  if (!/\.json$/i.test(name)) name += '.json';
+  // 简单校验文件名合法性
+  if (/[\\\/]/.test(name)) { showStatus('文件名不能包含路径分隔符', true); return; }
+  try {
+    var res = await fetch('/api/new?file=' + encodeURIComponent(name), { method: 'POST' });
+    if (res.status === 409) { showStatus('文件已存在: ' + name, true); return; }
+    if (!res.ok) {
+      var t = await res.text();
+      throw new Error(t || ('HTTP ' + res.status));
+    }
+    await refreshList();
+    await loadFile(name);
+    showStatus('已创建 ' + name);
+  } catch (e) {
+    showStatus('创建失败: ' + e.message, true);
+  }
+}
+
+async function deleteFile() {
+  if (!currentFile) { showStatus('未加载文件', true); return; }
+  if (!confirm('确认删除文件 ' + currentFile + ' ？此操作不可恢复。')) return;
+  try {
+    var res = await fetch('/api/delete?file=' + encodeURIComponent(currentFile), { method: 'DELETE' });
+    if (!res.ok) {
+      var t = await res.text();
+      throw new Error(t || ('HTTP ' + res.status));
+    }
+    showStatus('已删除 ' + currentFile);
+    dirty = false;   // 删除后清空，重置未保存标志
+    currentFile = null;
+    fileHintEl.textContent = '未加载文件';
+    model = emptyModel();
+    render();
+    await refreshList();
+  } catch (e) {
+    showStatus('删除失败: ' + e.message, true);
+  }
+}
+
+/* ============================================================
+ * 状态提示
+ * ============================================================ */
+var statusTimer = null;
+function showStatus(msg, isErr) {
+  statusEl.textContent = msg;
+  statusEl.classList.toggle('err', !!isErr);
+  if (statusTimer) clearTimeout(statusTimer);
+  statusTimer = setTimeout(function () { statusEl.textContent = ''; }, 4000);
+}
+
+/* ============================================================
+ * 浅/深色主题
+ * ============================================================ */
+var themeMode = localStorage.getItem('theme') || 'auto'; // auto | light | dark
+function applyTheme() {
+  if (themeMode === 'light' || themeMode === 'dark') {
+    document.documentElement.setAttribute('data-theme', themeMode);
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+  themeBtn.textContent = themeMode === 'dark' ? '☾ 深' : themeMode === 'light' ? '☀ 浅' : '☀/☾ 自';
+}
+themeBtn.addEventListener('click', function () {
+  themeMode = themeMode === 'auto' ? 'light' : themeMode === 'light' ? 'dark' : 'auto';
+  localStorage.setItem('theme', themeMode);
+  applyTheme();
+});
+
+/* ============================================================
+ * HTML 转义
+ * ============================================================ */
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function escapeAttr(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/* ============================================================
+ * 初始化
+ * ============================================================ */
+(async function init() {
+  applyTheme();
+  render();           // 先渲染空表单，避免白屏
+  await refreshList();
+  var params = new URLSearchParams(location.search);
+  var file = params.get('file');
+  if (file) {
+    await loadFile(file);
+  } else if (files.length) {
+    await loadFile(files[0].file);
+  } else {
+    showStatus('todolist 目录为空，点击「新建」创建清单');
+  }
+})();
+</script>
+</body>
+</html>
