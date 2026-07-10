@@ -80,6 +80,9 @@ cd todolistmod && gradlew.bat build
 ```json
 {
   "name": "清单名称（执行时用 /todolist do <这个名称>）",
+  "description": "清单介绍（可选，启动时在聊天栏显示）",
+  "mcVersionMin": "1.21",
+  "mcVersionMax": "1.21.1",
   "type": "flow",
   "maxSteps": 30,
   "tasks": [
@@ -102,6 +105,9 @@ cd todolistmod && gradlew.bat build
 - `name`：清单名称，也是指令里用的标识。
 - `type`：清单类型，目前只支持 `"flow"`。
 - `maxSteps`：最大跳转步数，防止清单写成死循环无限执行。超过则自动终止。设为 `0` 或负数表示不限制（不建议）。
+- `description`：（可选）清单介绍，支持多行（`\n` 换行）。清单启动时会先按行输出到聊天栏（暗灰色）。`/todolist list` 列表中仅显示首行（超 50 字符截断）。
+- `mcVersionMin`：（可选）兼容的 Minecraft 版本下限（含），如 `"1.21"` 或 `"1.21.1"`。空或不写表示无下限。
+- `mcVersionMax`：（可选）兼容的 Minecraft 版本上限（含），如 `"1.21.1"`。空或不写表示无上限。只写 `major.minor`（如 `"1.21"`）时视为兼容整个 minor 系列（所有 `1.21.x`）；只写 `major`（如 `"1"`）时视为兼容整个 major 系列。启动时若当前版本不在范围内，会警告并要求玩家确认后才执行。
 - `tasks`：步骤数组。
   - `id`：步骤编号（整数），供 `jumpto` 跳转用。不必连续。
   - `desc`：聊天栏显示的描述文字。
@@ -132,6 +138,9 @@ cd todolistmod && gradlew.bat build
 ```json
 {
   "name": "我的第一个清单",
+  "description": "这是一个通用示例清单，演示交互步骤、终止步骤与四种动作。",
+  "mcVersionMin": "1.21",
+  "mcVersionMax": "1.21.1",
   "type": "flow",
   "maxSteps": 30,
   "tasks": [

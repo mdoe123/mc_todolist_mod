@@ -282,6 +282,19 @@
             <input type="text" id="f-name" data-field="name" class="grow" placeholder="清单名称" data-i18n-placeholder="placeholder.name">
           </label>
         </div>
+        <div class="row block">
+          <label><span data-i18n="field.description">介绍</span>
+            <textarea id="f-description" data-field="description" rows="3" placeholder="清单用途说明（可选，多行）" data-i18n-placeholder="placeholder.description"></textarea>
+          </label>
+        </div>
+        <div class="row">
+          <label class="field grow"><span data-i18n="field.mcVersionMin">MC 版本下限</span>
+            <input type="text" id="f-mcversionmin" data-field="mcVersionMin" class="grow" placeholder="如 1.21（留空表示无限制）" data-i18n-placeholder="placeholder.mcVersionMin">
+          </label>
+          <label class="field grow"><span data-i18n="field.mcVersionMax">MC 版本上限</span>
+            <input type="text" id="f-mcversionmax" data-field="mcVersionMax" class="grow" placeholder="如 1.21.1（留空表示无限制）" data-i18n-placeholder="placeholder.mcVersionMax">
+          </label>
+        </div>
         <div class="row">
           <label class="field"><span>type</span>
             <input type="text" value="flow" readonly style="width:90px">
@@ -378,6 +391,12 @@ var I18N = {
     'hint.empty_dir': 'todolist 目录为空，点击「新建」创建清单',
     'placeholder.name': '清单名称',
     'placeholder.maxsteps': '0=不限',
+    'placeholder.description': '清单用途说明（可选，多行）',
+    'placeholder.mcVersionMin': '如 1.21（留空表示无限制）',
+    'placeholder.mcVersionMax': '如 1.21.1（留空表示无限制）',
+    'field.description': '介绍',
+    'field.mcVersionMin': 'MC 版本下限',
+    'field.mcVersionMax': 'MC 版本上限',
     'placeholder.message': '可空',
     'select.file': '— 选择文件 —',
     'task.label': '任务 #',
@@ -440,6 +459,12 @@ var I18N = {
     'hint.empty_dir': 'todolist directory is empty. Click "New" to create a checklist.',
     'placeholder.name': 'Checklist name',
     'placeholder.maxsteps': '0=unlimited',
+    'placeholder.description': 'Checklist purpose (optional, multi-line)',
+    'placeholder.mcVersionMin': 'e.g. 1.21 (empty = no limit)',
+    'placeholder.mcVersionMax': 'e.g. 1.21.1 (empty = no limit)',
+    'field.description': 'Description',
+    'field.mcVersionMin': 'MC Version Min',
+    'field.mcVersionMax': 'MC Version Max',
     'placeholder.message': 'optional',
     'select.file': '— Select file —',
     'task.label': 'Task #',
@@ -511,7 +536,7 @@ langBtn.addEventListener('click', function () {
  * 模型构造 / 序列化
  * ============================================================ */
 function emptyModel() {
-  return { name: "", type: "flow", maxSteps: 30, tasks: [] };
+  return { name: "", type: "flow", maxSteps: 30, description: "", mcVersionMin: "", mcVersionMax: "", tasks: [] };
 }
 
 function newTask() {
@@ -537,6 +562,9 @@ function fromJson(data) {
     name: data.name || "",
     type: "flow",
     maxSteps: (data.maxSteps !== undefined && data.maxSteps !== null) ? data.maxSteps : 30,
+    description: data.description || "",
+    mcVersionMin: data.mcVersionMin || "",
+    mcVersionMax: data.mcVersionMax || "",
     tasks: (data.tasks || []).map(function (t) {
       return {
         id: t.id,
@@ -567,6 +595,9 @@ function toJson() {
     name: model.name || "",
     type: "flow",
     maxSteps: parseInt(model.maxSteps, 10) || 0,
+    description: model.description || "",
+    mcVersionMin: model.mcVersionMin || "",
+    mcVersionMax: model.mcVersionMax || "",
     tasks: model.tasks.map(function (t) {
       var task = {
         id: parseInt(t.id, 10) || 0,
@@ -605,6 +636,9 @@ function actionToJson(a) {
 function render() {
   document.getElementById('f-name').value = model.name || "";
   document.getElementById('f-maxsteps').value = (model.maxSteps !== undefined && model.maxSteps !== null) ? model.maxSteps : 0;
+  document.getElementById('f-description').value = model.description || "";
+  document.getElementById('f-mcversionmin').value = model.mcVersionMin || "";
+  document.getElementById('f-mcversionmax').value = model.mcVersionMax || "";
 
   var container = document.getElementById('tasksContainer');
   if (!model.tasks.length) {
@@ -716,6 +750,12 @@ function onFormChange(e) {
     model.name = el.value;
   } else if (field === "maxSteps") {
     model.maxSteps = parseInt(el.value, 10) || 0;
+  } else if (field === "description") {
+    model.description = el.value;
+  } else if (field === "mcVersionMin") {
+    model.mcVersionMin = el.value;
+  } else if (field === "mcVersionMax") {
+    model.mcVersionMax = el.value;
   } else if (ti !== null) {
     var task = model.tasks[ti];
     if (!task) return;

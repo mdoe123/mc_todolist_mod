@@ -29,5 +29,13 @@
   "todolist.exec.back_empty": "Already at the earliest step, cannot go back.",
   "todolist.exec.back_done": "(Returned to previous step. Side effects cannot be undone, please choose again.)",
   "todolist.exec.ended_name": "[%s] Checklist ended.",
-  "todolist.exec.not_in_game": "Cannot execute command: not in game."
+  "todolist.exec.not_in_game": "Cannot execute command: not in game.",
+  "todolist.list.description": "Description: %s",
+  "todolist.do.version_warning": "Warning: checklist [%s] requires MC version %s ~ %s, current is %s. Commands may be incompatible.",
+  "todolist.do.confirm_continue": "Continue",
+  "todolist.do.cancel": "Cancel",
+  "todolist.do.version_confirmed": "Version warning acknowledged, starting checklist [%s].",
+  "todolist.do.version_cancelled": "Cancelled checklist [%s].",
+  "todolist.do.version_too_low": "Current MC version is below the required minimum.",
+  "todolist.do.version_too_high": "Current MC version is above the required maximum."
 }

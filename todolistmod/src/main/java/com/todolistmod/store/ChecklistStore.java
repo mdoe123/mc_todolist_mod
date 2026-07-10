@@ -32,6 +32,9 @@ public class ChecklistStore {
     private static final String EXAMPLE_JSON = """
 {
   "name": "我的第一个清单",
+  "description": "这是一个通用示例清单，演示交互步骤、终止步骤与四种动作。",
+  "mcVersionMin": "1.21",
+  "mcVersionMax": "1.21.1",
   "type": "flow",
   "maxSteps": 30,
   "tasks": [

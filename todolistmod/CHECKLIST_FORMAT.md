@@ -19,6 +19,9 @@
 ```json
 {
   "name": "清单名称（必填，指令用这个定位）",
+  "description": "清单介绍（可选，启动时在聊天栏显示）",
+  "mcVersionMin": "1.21",
+  "mcVersionMax": "1.21.1",
   "type": "flow",
   "maxSteps": 30,
   "tasks": [ ... 步骤数组 ... ]
@@ -28,6 +31,9 @@
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
 | `name` | string | 是 | 清单名称，`/todolist do <这个值>` 用它定位 |
+| `description` | string | 否 | 清单介绍，支持多行（`\n` 换行）；启动时按行输出到聊天栏（暗灰色）。`/todolist list` 列表中仅显示首行（超 50 字符截断） |
+| `mcVersionMin` | string | 否 | 兼容的 Minecraft 版本下限（含），如 `"1.21"` 或 `"1.21.1"`。空或不写表示无下限 |
+| `mcVersionMax` | string | 否 | 兼容的 Minecraft 版本上限（含），如 `"1.21.1"`。空或不写表示无上限。只写 `major.minor`（如 `"1.21"`）时视为兼容整个 minor 系列（即所有 `1.21.x`）；只写 `major`（如 `"1"`）时视为兼容整个 major 系列 |
 | `type` | string | 是 | 清单类型，目前固定为 `"flow"` |
 | `maxSteps` | int | 是 | 最大跳转步数，防死循环；`<=0` 表示不限制（不建议） |
 | `tasks` | array | 是 | 步骤数组，元素为 Task 对象（见第 3 节） |
@@ -120,6 +126,9 @@
 ```json
 {
   "name": "我的第一个清单",
+  "description": "这是一个通用示例清单，演示交互步骤、终止步骤与四种动作。",
+  "mcVersionMin": "1.21",
+  "mcVersionMax": "1.21.1",
   "type": "flow",
   "maxSteps": 30,
   "tasks": [
@@ -288,6 +297,8 @@
 - **进度查询**：`/todolist is` 可看当前进行中的清单及步骤。
 - **手动结束**：`/todolist end <清单名>` 可强制结束卡住的清单。
 - **返回上一步**：`/todolist back <清单名>` 返回上一步（支持连续多次）。回退不消耗 `maxSteps` 额度，但已执行的 `run`/`print` 副作用不可撤销，仅回到上一步交互界面供重选。
+- **版本兼容校验**：清单启动时若 `mcVersionMin` / `mcVersionMax` 标注的版本范围与当前 MC 版本不匹配，会输出警告并显示「继续执行 / 取消」按钮，**需玩家确认后才执行**（不会自动执行也不会拒绝）。旧清单不带这两个字段时跳过校验。
+- **清单介绍**：若 `description` 非空，清单真正开始执行时（含版本确认通过后）会先按行输出介绍文本（暗灰色），再渲染首个步骤。
 - **编辑清单**：`/todolist edit [清单名]` 在浏览器打开 HTML 编辑器（见 README.md）。编辑器支持两种模式：
   - **表单模式**（`editor.html`）：以卡片表单逐字段编辑，右侧实时预览 JSON。
   - **块模式**（`blockly_editor.html`）：基于 Blockly 积木块的可视化编辑，拖拽「步骤」与「动作」块搭建流程，自动双向转换为本规范定义的清单 JSON；保存前校验 id 唯一性与 jumpto 目标存在性。两模式通过顶部「表单 / 块」按钮切换，未保存改动会提示。
@@ -298,10 +309,13 @@
 
 ```
 清单 Checklist
-├─ name      : string          // 必填，指令定位用
-├─ type      : "flow"          // 必填，固定值
-├─ maxSteps  : int             // 必填，<=0 不限制
-└─ tasks[]   : Task[]          // 必填
+├─ name        : string          // 必填，指令定位用
+├─ description : string          // 可选，多行介绍（\n 换行），启动时显示
+├─ mcVersionMin: string          // 可选，兼容版本下限（含），空=无下限
+├─ mcVersionMax: string          // 可选，兼容版本上限（含），空=无上限
+├─ type        : "flow"          // 必填，固定值
+├─ maxSteps    : int             // 必填，<=0 不限制
+└─ tasks[]     : Task[]          // 必填
    ├─ id       : int           // 必填，唯一
    ├─ desc     : string        // 必填
    ├─ option   : {trueText,falseText} | null   // null=终止步骤

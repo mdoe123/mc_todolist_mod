@@ -88,6 +88,16 @@ public class TodoListCommand {
                     .withColor(Formatting.AQUA)));
             line.append(Text.translatable("todolist.list.steps", n).formatted(Formatting.DARK_GRAY));
             src.sendFeedback(line);
+            // 显示清单介绍（若有）：仅取第一行，过长截断
+            if (e.checklist.description != null && !e.checklist.description.isBlank()) {
+                String firstLine = e.checklist.description.split("\n")[0];
+                if (firstLine.length() > 50) {
+                    firstLine = firstLine.substring(0, 50) + "...";
+                }
+                src.sendFeedback(Text.literal("     ")
+                        .append(Text.translatable("todolist.list.description", firstLine)
+                                .formatted(Formatting.DARK_GRAY)));
+            }
         }
         return all.size();
     }

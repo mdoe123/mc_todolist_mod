@@ -29,5 +29,13 @@
   "todolist.exec.back_empty": "已是最早步骤，无法返回。",
   "todolist.exec.back_done": "（已返回上一步，副作用不可撤销，请重新选择）",
   "todolist.exec.ended_name": "[%s] 清单已结束。",
-  "todolist.exec.not_in_game": "无法执行指令：未进入游戏。"
+  "todolist.exec.not_in_game": "无法执行指令：未进入游戏。",
+  "todolist.list.description": "介绍：%s",
+  "todolist.do.version_warning": "警告：清单 [%s] 标注的兼容版本为 %s ~ %s，当前 MC 版本为 %s。可能存在命令不兼容问题。",
+  "todolist.do.confirm_continue": "继续执行",
+  "todolist.do.cancel": "取消",
+  "todolist.do.version_confirmed": "已确认版本警告，开始执行清单 [%s]。",
+  "todolist.do.version_cancelled": "已取消执行清单 [%s]。",
+  "todolist.do.version_too_low": "当前 MC 版本低于清单要求下限。",
+  "todolist.do.version_too_high": "当前 MC 版本高于清单要求上限。"
 }

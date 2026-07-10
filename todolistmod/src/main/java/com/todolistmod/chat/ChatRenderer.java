@@ -37,6 +37,15 @@ public class ChatRenderer {
         client.inGameHud.getChatHud().addMessage(text.copy().formatted(Formatting.AQUA));
     }
 
+    /** 在聊天栏输出一行文本，保留传入 Text 自身的格式化（不附加默认青色） */
+    public static void printRaw(Text text) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.inGameHud == null || text == null) {
+            return;
+        }
+        client.inGameHud.getChatHud().addMessage(text.copy());
+    }
+
     /** 渲染执行器当前步骤：标题行、描述行，以及（若有）选项按钮行 */
     public static void renderTask(ChecklistExecutor exec) {
         MinecraftClient client = MinecraftClient.getInstance();
@@ -76,6 +85,28 @@ public class ChatRenderer {
                     "/todolist _click " + falseToken));
             client.inGameHud.getChatHud().addMessage(line);
         }
+    }
+
+    /**
+     * 在聊天栏输出一对可点击按钮（左绿右红），各绑定一个一次性令牌。
+     *
+     * @param trueLabel  左侧按钮文案
+     * @param trueToken  左侧按钮令牌
+     * @param falseLabel 右侧按钮文案
+     * @param falseToken 右侧按钮令牌
+     */
+    public static void printButtons(Text trueLabel, String trueToken, Text falseLabel, String falseToken) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.inGameHud == null) {
+            return;
+        }
+        MutableText line = Text.empty();
+        line.append(clickable("      [" + trueLabel.getString() + "]", Formatting.GREEN,
+                "/todolist _click " + trueToken));
+        line.append(Text.literal("    "));
+        line.append(clickable("[" + falseLabel.getString() + "]", Formatting.RED,
+                "/todolist _click " + falseToken));
+        client.inGameHud.getChatHud().addMessage(line);
     }
 
     private static MutableText clickable(String text, Formatting color, String command) {

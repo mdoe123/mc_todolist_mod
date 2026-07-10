@@ -152,6 +152,18 @@
     border-color: var(--fg);
   }
   input[readonly] { background: var(--card-bg); color: var(--muted); }
+  textarea {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 4px 6px;
+    outline: none;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--fg);
+    resize: vertical;
+  }
+  textarea:focus { border-color: var(--fg); }
 
   label.field { display: inline-flex; align-items: center; gap: 6px; }
   label.field > span { color: var(--muted); white-space: nowrap; }
@@ -260,6 +272,12 @@
         <input type="text" value="flow" readonly style="width:70px"></label>
       <label class="field"><span>maxSteps</span>
         <input type="number" id="f-maxsteps" class="compact" placeholder="0=不限" data-i18n-placeholder="placeholder.maxsteps"></label>
+      <label class="field"><span data-i18n="field.description">介绍</span>
+        <textarea id="f-description" rows="1" placeholder="清单用途说明" style="width:180px" data-i18n-placeholder="placeholder.description"></textarea></label>
+      <label class="field"><span data-i18n="field.mcVersionMin">版本下限</span>
+        <input type="text" id="f-mcversionmin" placeholder="如 1.21" style="width:80px" data-i18n-placeholder="placeholder.mcVersionMin"></label>
+      <label class="field"><span data-i18n="field.mcVersionMax">版本上限</span>
+        <input type="text" id="f-mcversionmax" placeholder="如 1.21.1" style="width:80px" data-i18n-placeholder="placeholder.mcVersionMax"></label>
     </div>
     <div class="spacer"></div>
     <div class="group">
@@ -334,6 +352,9 @@ var statusEl = document.getElementById('status');
 var fileListEl = document.getElementById('fileList');
 var nameInput = document.getElementById('f-name');
 var maxStepsInput = document.getElementById('f-maxsteps');
+var descriptionInput = document.getElementById('f-description');
+var mcVersionMinInput = document.getElementById('f-mcversionmin');
+var mcVersionMaxInput = document.getElementById('f-mcversionmax');
 var themeBtn = document.getElementById('themeBtn');
 var workspaceHint = document.getElementById('workspace-hint');
 var langBtn = document.getElementById('langBtn');
@@ -355,6 +376,12 @@ var I18N = {
     'hint.empty_dir': 'todolist 目录为空，点击「新建」创建清单',
     'placeholder.name': '清单名称',
     'placeholder.maxsteps': '0=不限',
+    'placeholder.description': '清单用途说明',
+    'placeholder.mcVersionMin': '如 1.21',
+    'placeholder.mcVersionMax': '如 1.21.1',
+    'field.description': '介绍',
+    'field.mcVersionMin': '版本下限',
+    'field.mcVersionMax': '版本上限',
     'cat.steps': '步骤',
     'cat.actions': '动作',
     'file.steps': '步',
@@ -418,6 +445,12 @@ var I18N = {
     'hint.empty_dir': 'todolist directory is empty. Click "New" to create a checklist.',
     'placeholder.name': 'Checklist name',
     'placeholder.maxsteps': '0=unlimited',
+    'placeholder.description': 'Checklist purpose',
+    'placeholder.mcVersionMin': 'e.g. 1.21',
+    'placeholder.mcVersionMax': 'e.g. 1.21.1',
+    'field.description': 'Description',
+    'field.mcVersionMin': 'MC Version Min',
+    'field.mcVersionMax': 'MC Version Max',
     'cat.steps': 'Steps',
     'cat.actions': 'Actions',
     'file.steps': 'steps',
@@ -701,6 +734,9 @@ function workspaceToJson() {
     name: nameInput.value || "",
     type: "flow",
     maxSteps: parseInt(maxStepsInput.value, 10) || 0,
+    description: descriptionInput.value || "",
+    mcVersionMin: mcVersionMinInput.value || "",
+    mcVersionMax: mcVersionMaxInput.value || "",
     tasks: tasks
   };
 }
@@ -764,6 +800,9 @@ function jsonToWorkspace(jsonObj) {
     workspace.clear();
     nameInput.value = jsonObj.name || "";
     maxStepsInput.value = (jsonObj.maxSteps !== undefined && jsonObj.maxSteps !== null) ? jsonObj.maxSteps : 0;
+    descriptionInput.value = jsonObj.description || "";
+    mcVersionMinInput.value = jsonObj.mcVersionMin || "";
+    mcVersionMaxInput.value = jsonObj.mcVersionMax || "";
 
     var tasks = jsonObj.tasks || [];
     var yPos = 20;
@@ -996,6 +1035,9 @@ async function deleteFile() {
     try { workspace.clear(); } finally { suppressDirty = false; }
     nameInput.value = "";
     maxStepsInput.value = "";
+    descriptionInput.value = "";
+    mcVersionMinInput.value = "";
+    mcVersionMaxInput.value = "";
     if (workspaceHint) workspaceHint.classList.remove('hidden');
     await refreshList();
   } catch (e) {
@@ -1022,6 +1064,9 @@ document.getElementById('modeFormBtn').addEventListener('click', function () {
  * ============================================================ */
 nameInput.addEventListener('input', function () { dirty = true; });
 maxStepsInput.addEventListener('input', function () { dirty = true; });
+descriptionInput.addEventListener('input', function () { dirty = true; });
+mcVersionMinInput.addEventListener('input', function () { dirty = true; });
+mcVersionMaxInput.addEventListener('input', function () { dirty = true; });
 
 /* ============================================================
  * 十、状态提示
