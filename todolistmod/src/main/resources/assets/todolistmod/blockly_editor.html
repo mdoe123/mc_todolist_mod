@@ -714,6 +714,10 @@ function initWorkspace() {
     move: { scrollbars: true, drag: true, wheel: true },
     zoom: { controls: true, wheel: true, pinch: true }
   });
+  // 禁用 flyout 自动关闭，使工具箱分类保持展开，点击工作区不会收起
+  if (workspace.getFlyout()) {
+    workspace.getFlyout().setAutoClose(false);
+  }
   // 监听任何变化以设置 dirty 标志
   workspace.addChangeListener(function () {
     if (!suppressDirty) {
