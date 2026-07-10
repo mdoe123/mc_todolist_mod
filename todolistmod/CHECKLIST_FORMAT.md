@@ -92,30 +92,83 @@
 | `type` | 作用 | 额外字段 | 是否终止当前分支 |
 | --- | --- | --- | --- |
 | `jumpto` | 跳转到指定 id 的步骤 | `id`：目标步骤 id（int） | 是，立即跳转 |
-| `print` | 聊天栏输出一行文字 | `text`：要输出的文字（string） | 否，继续下一动作 |
-| `run` | 以玩家身份发送指令 | `command`：指令文本，带不带 `/` 都行（string） | 否，继续下一动作 |
+| `print` | 聊天栏输出一行文字（支持 `${变量}` 插值） | `text`：要输出的文字（string） | 否，继续下一动作 |
+| `run` | 以玩家身份发送指令（支持 `${变量}` 插值） | `command`：指令文本，带不带 `/` 都行（string） | 否，继续下一动作 |
 | `end` | 结束整个清单 | `message`：结束提示文字，**可省略**（string） | 是，立即结束 |
+| `set` | 设置自定义变量的值（透传动作） | `var`：变量名（string）；`value`：值表达式（string） | 否，继续下一动作 |
+| `if` | 条件跳转（透传动作） | `cond`：条件表达式（string）；`id`：条件为 true 时跳转的目标步骤 id（int） | 仅当条件为 true 时终止分支并跳转；false 时继续下一动作 |
 
 ### 4.1 各动作示例
 
 ```json
 {"type": "jumpto", "id": 2}
 {"type": "print", "text": "请先重置地图再执行本清单"}
+{"type": "print", "text": "当前生命值：${player.health}"}
 {"type": "run", "command": "/gamerule keepInventory false"}
 {"type": "run", "command": "gamerule doDaylightCycle false"}
+{"type": "run", "command": "/tp @s ${player.x} 100 ${player.z}"}
 {"type": "end"}
 {"type": "end", "message": "清单终止"}
+{"type": "set", "var": "count", "value": "1 + 1"}
+{"type": "set", "var": "danger", "value": "${player.health} < 10"}
+{"type": "if", "cond": "${player.health} > 0", "id": 5}
+{"type": "if", "cond": "${world.weather} == \"thunder\"", "id": 3}
 ```
 
 ### 4.2 分支执行规则（重要）
 
 一个分支（`trueDo` 或 `falseDo`）内的动作**按数组顺序依次执行**：
 
-- `print` / `run` 执行完 → **继续**当前分支的下一个动作
+- `print` / `run` / `set` 执行完 → **继续**当前分支的下一个动作
 - `jumpto` / `end` 执行完 → **立即终止**当前分支（跳转或结束）
-- 若整个分支执行完都没遇到 `jumpto` 或 `end` → 清单**暂停**，提示玩家可用 `/todolist end` 手动结束
+- `if` 动作：条件为 **true** 时立即终止分支并跳转到 `id`；条件为 **false** 时视作透传动作，**继续**当前分支的下一个动作
+- 若整个分支执行完都没遇到 `jumpto` 或 `end`（也没遇到条件为 true 的 `if`）→ 清单**暂停**，提示玩家可用 `/todolist end` 手动结束
 
-> 因此每个交互分支通常应以 `jumpto` 或 `end` 收尾。
+> 因此每个交互分支通常应以 `jumpto`、`end` 或可能终止的 `if` 收尾。
+
+### 4.3 变量插值与表达式（set / if / print / run）
+
+`print` 的 `text`、`run` 的 `command` 支持 **${变量名}** 形式的插值：执行前将其替换为变量值的字符串形式。变量未定义时替换为 `?`。
+
+`set` 的 `value` 与 `if` 的 `cond` 是**表达式**，由递归下降解析器求值（不是简单插值）。表达式支持：
+
+- **变量引用**：`${name}`（先查自定义变量，再查游戏预定义变量）
+- **数字字面量**：`123`、`3.14`、`-5`
+- **字符串字面量**：`"hello"`（双引号包围）
+- **布尔字面量**：`true`、`false`
+- **算术运算**：`+ - * / %`（`+` 两边任一为字符串时做拼接）
+- **比较运算**：`== != < > <= >=`（两边都为数字时按数值比较，否则按字符串比较）
+- **逻辑运算**：`&& || !`
+- **括号**：`()` 改变优先级
+
+表达式求值失败时返回 null（`if` 视为 false，`set` 不写入）。详细语法见 `ExpressionEvaluator.java` 类注释。
+
+#### 预定义游戏变量
+
+以下变量由客户端实时读取（玩家不在游戏内时除 `world.fps` 外均返回 null）：
+
+| 变量名 | 类型 | 说明 |
+| --- | --- | --- |
+| `player.health` | int | 当前生命值 |
+| `player.max_health` | int | 最大生命值 |
+| `player.hunger` | int | 饥饿值（0-20） |
+| `player.saturation` | int | 饱食度 |
+| `player.armor` | int | 护甲值 |
+| `player.x` / `player.y` / `player.z` | int | 玩家所在方块坐标 |
+| `player.xp_level` | int | 经验等级 |
+| `player.gamemode` | string | 游戏模式名称（survival/creative/adventure/spectator） |
+| `player.sneaking` | bool | 是否潜行 |
+| `player.sprinting` | bool | 是否疾跑 |
+| `player.on_ground` | bool | 是否着地 |
+| `player.in_water` | bool | 是否在水中 |
+| `player.dimension` | string | 维度标识（如 `minecraft:overworld`） |
+| `world.time` | int | 当日时间（0-23999） |
+| `world.day` | int | 当前总天数 |
+| `world.weather` | string | 天气：`thunder` / `rain` / `clear` |
+| `world.difficulty` | string | 难度名称（peaceful/easy/normal/hard） |
+| `world.fps` | int | 当前帧率 |
+
+> 自定义变量（由 `set` 动作写入）与游戏变量命名空间独立：表达式/插值查找时**先查自定义变量**，找不到再查游戏预定义变量。
 
 ---
 
@@ -301,7 +354,7 @@
 - **清单介绍**：若 `description` 非空，清单真正开始执行时（含版本确认通过后）会先按行输出介绍文本（暗灰色），再渲染首个步骤。
 - **编辑清单**：`/todolist edit [清单名]` 在浏览器打开 HTML 编辑器（见 README.md）。编辑器支持两种模式：
   - **表单模式**（`editor.html`）：以卡片表单逐字段编辑，右侧实时预览 JSON。
-  - **块模式**（`blockly_editor.html`）：基于 Blockly 积木块的可视化编辑，拖拽「步骤」与「动作」块搭建流程，自动双向转换为本规范定义的清单 JSON；保存前校验 id 唯一性与 jumpto 目标存在性。两模式通过顶部「表单 / 块」按钮切换，未保存改动会提示。
+  - **块模式**（`blockly_editor.html`）：基于 Blockly 积木块的可视化编辑，拖拽「步骤」与「动作」块搭建流程，自动双向转换为本规范定义的清单 JSON；保存前校验 id 唯一性、jumpto 目标存在性以及 `if` 条件跳转目标存在性。两模式通过顶部「表单 / 块」按钮切换，未保存改动会提示。
 
 ---
 
@@ -324,7 +377,14 @@
 
 动作 Action（按 type 取字段）
 ├─ jumpto : {type, id}
-├─ print  : {type, text}
-├─ run    : {type, command}
-└─ end    : {type, message?}   // message 可省略
+├─ print  : {type, text}                  // text 支持 ${变量} 插值
+├─ run    : {type, command}               // command 支持 ${变量} 插值
+├─ end    : {type, message?}              // message 可省略
+├─ set    : {type, var, value}            // value 为表达式，透传动作
+└─ if     : {type, cond, id}              // cond 为表达式；true 跳转 id，false 透传
+
+表达式（set.value / if.cond）：支持 ${变量}、数字、"字符串"、true/false、
++ - * / %、== != < > <= >=、&& || !、()；详见 4.3 节
+预定义游戏变量：player.health/hunger/x/y/z/gamemode...、world.time/weather/fps...
+（完整列表见 4.3 节）
 ```

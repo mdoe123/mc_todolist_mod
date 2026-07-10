@@ -13,7 +13,9 @@ import net.minecraft.util.Formatting;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 单份清单的执行引擎：维护当前步骤、步数计数，并按顺序执行动作。
@@ -31,6 +33,8 @@ public class ChecklistExecutor {
     private boolean pendingVersionConfirm = false;
     /** 步骤历史栈：每次 jumpto 跳转前压入离开的步骤，back() 弹出回到上一步 */
     private final Deque<ChecklistTask> stepHistory = new ArrayDeque<>();
+    /** 自定义变量存储（set 动作写入，表达式/print/run 读取） */
+    private final Map<String, Object> variables = new HashMap<>();
 
     public ChecklistExecutor(Checklist checklist) {
         this.checklist = checklist;
@@ -159,29 +163,22 @@ public class ChecklistExecutor {
             }
             switch (a.type) {
                 case "run":
-                    runCommand(a.command);
+                    runCommand(ExpressionEvaluator.substitute(a.command, variables));
                     break;
                 case "print":
-                    ChatRenderer.printPlain(a.text);
+                    ChatRenderer.printPlain(ExpressionEvaluator.substitute(a.text, variables));
+                    break;
+                case "set":
+                    setVariable(a.var, a.value);
+                    break;
+                case "if":
+                    if (evalCondition(a.cond)) {
+                        jumpTo(a.id);
+                        return;
+                    }
                     break;
                 case "jumpto":
-                    // jumpto 终止当前分支：切换步骤后立即返回
-                    ClickTokens.clearForExecutor(this);
-                    ChecklistTask target = findTask(a.id);
-                    if (target == null) {
-                        ChatRenderer.printPlain(Text.translatable("todolist.exec.jumpto_not_found", a.id));
-                        finished = true;
-                        return;
-                    }
-                    if (checklist.maxSteps > 0 && stepCount >= checklist.maxSteps) {
-                        ChatRenderer.printPlain(Text.translatable("todolist.exec.max_steps", checklist.maxSteps));
-                        finished = true;
-                        return;
-                    }
-                    stepCount++;
-                    stepHistory.addLast(currentTask);
-                    currentTask = target;
-                    renderCurrent();
+                    jumpTo(a.id);
                     return;
                 case "end":
                     endExecution(a.message);
@@ -226,6 +223,41 @@ public class ChecklistExecutor {
         }
         ChatRenderer.printPlain(Text.translatable("todolist.exec.ended_name",
                 checklist.name == null ? "?" : checklist.name));
+    }
+
+    /** 跳转到指定 id 的步骤（jumpto 和 if 共用）。终止当前分支。 */
+    private void jumpTo(Integer targetId) {
+        ClickTokens.clearForExecutor(this);
+        ChecklistTask target = findTask(targetId);
+        if (target == null) {
+            ChatRenderer.printPlain(Text.translatable("todolist.exec.jumpto_not_found", targetId));
+            finished = true;
+            return;
+        }
+        if (checklist.maxSteps > 0 && stepCount >= checklist.maxSteps) {
+            ChatRenderer.printPlain(Text.translatable("todolist.exec.max_steps", checklist.maxSteps));
+            finished = true;
+            return;
+        }
+        stepCount++;
+        stepHistory.addLast(currentTask);
+        currentTask = target;
+        renderCurrent();
+    }
+
+    /** 设置自定义变量：对 value 表达式求值后存入 variables */
+    private void setVariable(String name, String expr) {
+        if (name == null || name.isEmpty()) return;
+        Object val = new ExpressionEvaluator(variables).evaluate(expr);
+        variables.put(name, val);
+    }
+
+    /** 求值条件表达式，返回布尔结果 */
+    private boolean evalCondition(String cond) {
+        Object result = new ExpressionEvaluator(variables).evaluate(cond);
+        if (result instanceof Boolean) return (Boolean) result;
+        if (result instanceof Number) return ((Number) result).doubleValue() != 0;
+        return false;
     }
 
     private void runCommand(String command) {

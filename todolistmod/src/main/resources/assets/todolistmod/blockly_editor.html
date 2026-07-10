@@ -324,6 +324,8 @@
     <block type="print"></block>
     <block type="run"></block>
     <block type="end"></block>
+    <block type="set_var"></block>
+    <block type="if"></block>
   </category>
 </xml>
 
@@ -418,6 +420,13 @@ var I18N = {
     'tooltip.print': '在聊天栏输出一行文字',
     'tooltip.run': '以玩家身份发送指令',
     'tooltip.end': '结束整个清单，message 可空',
+    'block.set_var': '设置变量',
+    'block.set_value': '值为',
+    'block.if': '如果',
+    'block.if_target': '跳转到',
+    'tooltip.set_var': '设置自定义变量的值（支持表达式，如 ${counter} + 1）',
+    'tooltip.if': '条件为 true 时跳转到指定 id，false 时继续（支持表达式，如 ${counter} < 3）',
+    'msg.if_target_not_found': '条件跳转目标不存在',
     'msg.name_empty': '清单名称(name)不能为空',
     'msg.task_id_dup_prefix': '步骤 id ',
     'msg.task_id_dup_suffix': ' 重复',
@@ -493,6 +502,13 @@ var I18N = {
     'tooltip.print': 'Output a line of text in chat',
     'tooltip.run': 'Send command as player',
     'tooltip.end': 'End the entire checklist, message can be empty',
+    'block.set_var': 'Set Variable',
+    'block.set_value': 'Value',
+    'block.if': 'If',
+    'block.if_target': 'Jump to',
+    'tooltip.set_var': 'Set a custom variable value (supports expressions like ${counter} + 1)',
+    'tooltip.if': 'Jump to id if condition is true, continue if false (supports expressions like ${counter} < 3)',
+    'msg.if_target_not_found': 'If target not found',
     'msg.name_empty': 'Checklist name cannot be empty',
     'msg.task_id_dup_prefix': 'Step id ',
     'msg.task_id_dup_suffix': ' duplicated',
@@ -562,6 +578,8 @@ function applyLang() {
       else if (blk.type === 'print') blk.setTooltip(t('tooltip.print'));
       else if (blk.type === 'run') blk.setTooltip(t('tooltip.run'));
       else if (blk.type === 'end') blk.setTooltip(t('tooltip.end'));
+      else if (blk.type === 'set_var') blk.setTooltip(t('tooltip.set_var'));
+      else if (blk.type === 'if') blk.setTooltip(t('tooltip.if'));
     });
     workspace.updateToolbox(document.getElementById('toolbox'));
     Blockly.svgResize(workspace);
@@ -671,6 +689,38 @@ Blockly.Blocks['end'] = {
     this.setNextStatement(true);
     this.setColour("#EF4444");
     this.setTooltip(t('tooltip.end'));
+  }
+};
+
+// 设置自定义变量（青色）
+Blockly.Blocks['set_var'] = {
+  init: function () {
+    this.appendDummyInput()
+        .appendField(t('block.set_var'))
+        .appendField(new Blockly.FieldTextInput("counter"), "var");
+    this.appendDummyInput()
+        .appendField(t('block.set_value'))
+        .appendField(new Blockly.FieldTextInput("0"), "value");
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+    this.setColour("#06B6D4");
+    this.setTooltip(t('tooltip.set_var'));
+  }
+};
+
+// 条件跳转（绿色）
+Blockly.Blocks['if'] = {
+  init: function () {
+    this.appendDummyInput()
+        .appendField(t('block.if'))
+        .appendField(new Blockly.FieldTextInput("${counter} < 3"), "cond");
+    this.appendDummyInput()
+        .appendField(t('block.if_target'))
+        .appendField(new Blockly.FieldNumber(1), "id");
+    this.setPreviousStatement(true);
+    this.setNextStatement(true);
+    this.setColour("#10B981");
+    this.setTooltip(t('tooltip.if'));
   }
 };
 
@@ -819,6 +869,10 @@ function actionBlockToJson(block) {
     var o = { type: 'end' };
     if (msg) { o.message = msg; }
     return o;
+  } else if (block.type === 'set_var') {
+    return { type: 'set', var: block.getFieldValue('var') || "", value: block.getFieldValue('value') || "" };
+  } else if (block.type === 'if') {
+    return { type: 'if', cond: block.getFieldValue('cond') || "", id: parseInt(block.getFieldValue('id'), 10) || 0 };
   }
   return { type: block.type };
 }
@@ -893,6 +947,12 @@ function createActionBlock(action) {
     b.setFieldValue(action.command || "/", 'command');
   } else if (type === 'end') {
     b.setFieldValue(action.message || "", 'message');
+  } else if (type === 'set') {
+    b.setFieldValue(action.var || "", 'var');
+    b.setFieldValue(action.value || "", 'value');
+  } else if (type === 'if') {
+    b.setFieldValue(action.cond || "", 'cond');
+    b.setFieldValue(String(action.id != null ? action.id : 1), 'id');
   }
   b.initSvg();
   b.render();
@@ -930,6 +990,12 @@ function validateWorkspace() {
       var targetId = parseInt(blk.getFieldValue('id'), 10);
       if (!taskIdSet.hasOwnProperty(targetId)) {
         return { ok: false, error: t('msg.jumpto_missing_prefix') + targetId + t('msg.jumpto_missing_suffix') };
+      }
+    }
+    if (blk.type === 'if') {
+      var ifTargetId = parseInt(blk.getFieldValue('id'), 10);
+      if (!taskIdSet.hasOwnProperty(ifTargetId)) {
+        return { ok: false, error: t('msg.if_target_not_found') + ': ' + ifTargetId };
       }
     }
   }

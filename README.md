@@ -30,8 +30,8 @@ cd todolistmod && gradlew.bat build
 
 构建产物在 `todolistmod/build/libs/`：
 
-- `todolistmod-1.2.0.jar` —— 这就是要放进 `mods` 文件夹的模组文件
-- `todolistmod-1.2.0-sources.jar` —— 源码包（可选）
+- `todolistmod-1.3.0.jar` —— 这就是要放进 `mods` 文件夹的模组文件
+- `todolistmod-1.3.0-sources.jar` —— 源码包（可选）
 
 > 首次构建会自动下载 Minecraft、Yarn 映射和依赖，耗时较长，属正常现象。
 > 若 `services.gradle.org` 下载 Gradle 本体很慢，可把 `gradle/wrapper/gradle-wrapper.properties`
@@ -41,7 +41,7 @@ cd todolistmod && gradlew.bat build
 ## 安装
 
 1. 确保已安装 Fabric Loader 和 Fabric API（选择与你当前 Minecraft 1.21.x 版本对应的 Fabric API）。
-2. 把 `todolistmod-1.2.0.jar` 放进 `.minecraft/mods/`。
+2. 把 `todolistmod-1.3.0.jar` 放进 `.minecraft/mods/`。
 3. 启动游戏。首次进入世界时，模组会在**游戏根目录**生成 `todolist` 文件夹；若配置项 `generateExample` 为 `true`（默认），还会写入一个 `example.json` 示例清单。
 
 ## 配置文件
@@ -143,10 +143,12 @@ cd todolistmod && gradlew.bat build
 | `print` | 在聊天栏输出一行文字，然后继续下一个动作 | `text`：要输出的文字 |
 | `run` | 以你的身份向服务器发送一条指令，然后继续 | `command`：指令，带不带 `/` 都行 |
 | `end` | 结束整个清单，**终止当前分支** | `message`：结束时的提示文字（可省略） |
+| `set` | 设置自定义变量的值（透传动作） | `var`：变量名；`value`：值表达式 |
+| `if` | 条件为 true 时跳转到指定 id，false 时继续 | `cond`：条件表达式；`id`：条件为 true 时跳转的目标步骤 id |
 
-**执行规则**：`print` 和 `run` 执行完会继续当前分支里的下一个动作；
-`jumpto` 和 `end` 会立即终止当前分支（跳转或结束）。
-如果一个分支里既没有 `jumpto` 也没有 `end`，清单会**暂停**并提示，可用 `/todolist end` 手动结束。
+**执行规则**：`print`、`run` 和 `set` 执行完会继续当前分支里的下一个动作；
+`jumpto` 和 `end` 会立即终止当前分支（跳转或结束）；`if` 在条件为 true 时终止分支并跳转，false 时继续下一个动作。
+如果一个分支里既没有 `jumpto` 也没有 `end`（也没遇到条件为 true 的 `if`），清单会**暂停**并提示，可用 `/todolist end` 手动结束。
 
 ### 完整示例
 
@@ -223,9 +225,9 @@ cd todolistmod && gradlew.bat build
 
 - 工具箱分「步骤」「动作」两个分类，默认展开（`expanded="true"`），分类间以分隔条区分，拖拽即可搭建流程
 - 步骤块含 `interactive_task`（交互步骤，带 trueDo/falseDo 嵌套槽）与 `terminal_task`（终止步骤）两类
-- 动作块含 `jumpto`（蓝）/ `print`（灰）/ `run`（橙）/ `end`（红）四类，按颜色区分
+- 动作块含 `jumpto`（蓝）/ `print`（灰）/ `run`（橙）/ `end`（红）/ `set_var`（青）/ `if`（绿）六类，按颜色区分
 - 工具栏提供「复制 / 粘贴 / 撤销 / 重做」四个图标按钮（14×14 线条风 SVG 图标）：复制当前选中块到剪贴板、从剪贴板粘贴块到工作区、撤销/重做工作区操作
-- 自动双向转换 Blockly 工作区 ↔ 清单 JSON，保存前校验 id 唯一性与 jumpto 目标存在性
+- 自动双向转换 Blockly 工作区 ↔ 清单 JSON，保存前校验 id 唯一性、jumpto 目标存在性以及 `if` 条件跳转目标存在性
 - Blockly 库（`blockly.min.js`，约 758 KB）已打包进 mod 资源，**离线可用**
 
 ### 通用行为

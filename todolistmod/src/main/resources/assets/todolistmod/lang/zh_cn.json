@@ -36,5 +36,6 @@
   "todolist.do.version_confirmed": "已确认版本警告，开始执行清单 [%s]。",
   "todolist.do.version_cancelled": "已取消执行清单 [%s]。",
   "todolist.do.version_too_low": "当前 MC 版本低于清单要求下限。",
-  "todolist.do.version_too_high": "当前 MC 版本高于清单要求上限。"
+  "todolist.do.version_too_high": "当前 MC 版本高于清单要求上限。",
+  "todolist.exec.expr_error": "表达式求值失败: %s"
 }

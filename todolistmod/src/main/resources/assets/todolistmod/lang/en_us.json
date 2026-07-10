@@ -36,5 +36,6 @@
   "todolist.do.version_confirmed": "Version warning acknowledged, starting checklist [%s].",
   "todolist.do.version_cancelled": "Cancelled checklist [%s].",
   "todolist.do.version_too_low": "Current MC version is below the required minimum.",
-  "todolist.do.version_too_high": "Current MC version is above the required maximum."
+  "todolist.do.version_too_high": "Current MC version is above the required maximum.",
+  "todolist.exec.expr_error": "Expression evaluation failed: %s"
 }

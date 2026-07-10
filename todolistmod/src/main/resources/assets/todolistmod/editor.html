@@ -397,6 +397,10 @@ var I18N = {
     'field.description': '介绍',
     'field.mcVersionMin': 'MC 版本下限',
     'field.mcVersionMax': 'MC 版本上限',
+    'field.var_name': '变量名',
+    'field.var_value': '值（表达式）',
+    'field.condition': '条件（表达式）',
+    'field.target_id': '目标步骤 ID',
     'placeholder.message': '可空',
     'select.file': '— 选择文件 —',
     'task.label': '任务 #',
@@ -465,6 +469,10 @@ var I18N = {
     'field.description': 'Description',
     'field.mcVersionMin': 'MC Version Min',
     'field.mcVersionMax': 'MC Version Max',
+    'field.var_name': 'Variable Name',
+    'field.var_value': 'Value (expression)',
+    'field.condition': 'Condition (expression)',
+    'field.target_id': 'Target Step ID',
     'placeholder.message': 'optional',
     'select.file': '— Select file —',
     'task.label': 'Task #',
@@ -553,7 +561,7 @@ function newTask() {
 }
 
 function newAction() {
-  return { type: "jumpto", id: 1, text: "", command: "", message: "" };
+  return { type: "jumpto", id: 1, text: "", command: "", message: "", var: "", value: "", cond: "" };
 }
 
 /* 把后端原始 JSON 转成前端 model */
@@ -585,7 +593,10 @@ function actionFromJson(a) {
     id: a.id,
     text: a.text || "",
     command: a.command || "",
-    message: a.message || ""
+    message: a.message || "",
+    var: a.var || "",
+    value: a.value || "",
+    cond: a.cond || ""
   };
 }
 
@@ -626,6 +637,12 @@ function actionToJson(a) {
   } else if (a.type === "end") {
     // message 可省略：仅在非空时写入
     if (a.message) o.message = a.message;
+  } else if (a.type === "set") {
+    o["var"] = a.var || "";
+    o.value = a.value || "";
+  } else if (a.type === "if") {
+    o.cond = a.cond || "";
+    o.id = parseInt(a.id, 10) || 0;
   }
   return o;
 }
@@ -705,6 +722,16 @@ function renderAction(ti, branch, ai, a) {
   } else if (a.type === "end") {
     fieldHtml = '<label class="field grow"><span>message</span>' +
       '<input type="text" data-field="amessage" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="grow" value="' + escapeAttr(a.message) + '" placeholder="' + escapeAttr(t('placeholder.message')) + '"></label>';
+  } else if (a.type === "set") {
+    fieldHtml = '<label class="field grow"><span>' + escapeHtml(t('field.var_name')) + '</span>' +
+      '<input type="text" data-field="avar" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="grow" value="' + escapeAttr(a.var) + '" placeholder="counter"></label>' +
+      '<label class="field grow"><span>' + escapeHtml(t('field.var_value')) + '</span>' +
+      '<input type="text" data-field="avalue" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="grow" value="' + escapeAttr(a.value) + '" placeholder="0"></label>';
+  } else if (a.type === "if") {
+    fieldHtml = '<label class="field grow"><span>' + escapeHtml(t('field.condition')) + '</span>' +
+      '<input type="text" data-field="acond" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="grow" value="' + escapeAttr(a.cond) + '" placeholder="${counter} < 3"></label>' +
+      '<label class="field"><span>' + escapeHtml(t('field.target_id')) + '</span>' +
+      '<input type="number" data-field="aid" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="compact" value="' + escapeAttr(a.id != null ? a.id : 1) + '"></label>';
   } else {
     fieldHtml = '<span class="empty-hint">' + escapeHtml(t('hint.unknown_action')) + '</span>';
   }
@@ -715,6 +742,8 @@ function renderAction(ti, branch, ai, a) {
       '<option value="print"'   + (a.type === "print"   ? " selected" : "") + '>print</option>' +
       '<option value="run"'     + (a.type === "run"     ? " selected" : "") + '>run</option>' +
       '<option value="end"'     + (a.type === "end"     ? " selected" : "") + '>end</option>' +
+      '<option value="set"'     + (a.type === "set"     ? " selected" : "") + '>set</option>' +
+      '<option value="if"'      + (a.type === "if"      ? " selected" : "") + '>if</option>' +
     '</select>' +
     fieldHtml +
     '<button class="danger" data-action="del-action" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '">' + escapeHtml(t('btn.del_action')) + '</button>' +
@@ -784,6 +813,12 @@ function onFormChange(e) {
       getArr(task, branch)[ai].command = el.value;
     } else if (field === "amessage") {
       getArr(task, branch)[ai].message = el.value;
+    } else if (field === "avar") {
+      getArr(task, branch)[ai].var = el.value;
+    } else if (field === "avalue") {
+      getArr(task, branch)[ai].value = el.value;
+    } else if (field === "acond") {
+      getArr(task, branch)[ai].cond = el.value;
     }
   }
   updatePreview();
