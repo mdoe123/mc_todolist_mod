@@ -1,0 +1,74 @@
+package com.todolistmod;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonSyntaxException;
+import net.fabricmc.loader.api.FabricLoader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+/**
+ * 模组配置，读写 config/todolistmod.json。
+ */
+public class ModConfig {
+    public static final Logger LOGGER = LoggerFactory.getLogger("ChatTodolist");
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+
+    /** 加载后的配置实例 */
+    public static ModConfig INSTANCE;
+
+    /** 是否在 todolist 目录生成示例清单 */
+    public boolean generateExample = true;
+    /** 编辑器 HTTP 端口（0=自动分配） */
+    public int editorPort = 0;
+    /** 清单最大步骤数上限 */
+    public int maxStepsLimit = 100;
+    /** 界面语言（"system"/"zh_cn"/"en_us"） */
+    public String language = "system";
+
+    /** 配置文件路径 */
+    public static Path getPath() {
+        return FabricLoader.getInstance().getConfigDir().resolve("todolistmod.json");
+    }
+
+    /** 加载配置：文件不存在则创建默认，存在则读取并补全缺失字段，格式错误则回退默认 */
+    public static ModConfig load() {
+        Path path = getPath();
+        ModConfig config;
+        if (Files.exists(path)) {
+            try (var reader = Files.newBufferedReader(path)) {
+                config = GSON.fromJson(reader, ModConfig.class);
+                if (config == null) config = new ModConfig();
+                config.fillDefaults();
+            } catch (IOException | JsonSyntaxException e) {
+                LOGGER.warn("[ChatTodolist] 配置文件解析失败，使用默认配置: {}", e.getMessage());
+                config = new ModConfig();
+            }
+        } else {
+            config = new ModConfig();
+            save(config);
+        }
+        INSTANCE = config;
+        return config;
+    }
+
+    /** 补全可能缺失的字段（向后兼容旧配置） */
+    private void fillDefaults() {
+        // Gson 对基本类型 int 不会为 null，但 String 可能为 null
+        if (language == null) language = "system";
+    }
+
+    /** 保存配置到文件 */
+    public static void save(ModConfig config) {
+        try {
+            Files.createDirectories(getPath().getParent());
+            Files.writeString(getPath(), GSON.toJson(config));
+        } catch (IOException e) {
+            LOGGER.warn("[ChatTodolist] 无法写入配置文件: {}", e.getMessage());
+        }
+    }
+}

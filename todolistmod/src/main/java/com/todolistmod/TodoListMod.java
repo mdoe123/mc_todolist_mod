@@ -18,6 +18,7 @@ public class TodoListMod implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        ModConfig.load();
         ChecklistStore.ensureDir();
         TodoListCommand.register();
         LOGGER.info("[ChatTodolist] 已初始化。把 .json 清单放到 <游戏目录>/todolist/ ，然后用 /todolist list 查看。");

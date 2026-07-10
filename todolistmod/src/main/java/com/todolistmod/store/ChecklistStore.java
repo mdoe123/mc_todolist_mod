@@ -2,6 +2,7 @@ package com.todolistmod.store;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;
+import com.todolistmod.ModConfig;
 import com.todolistmod.model.Checklist;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
@@ -11,7 +12,6 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.nio.file.attribute.FileTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -85,15 +85,17 @@ public class ChecklistStore {
         return FabricLoader.getInstance().getGameDir().resolve("todolist");
     }
 
-    /** 确保目录存在，并在首次创建时写入示例清单 */
+    /** 确保目录存在，根据配置决定是否写入示例清单 */
     public static void ensureDir() {
         Path dir = getDir();
         try {
             Files.createDirectories(dir);
-            Path example = dir.resolve("example.json");
-            if (Files.notExists(example)) {
-                Files.writeString(example, EXAMPLE_JSON);
-                LOGGER.info("[ChatTodolist] 已写入示例清单: {}", example);
+            if (ModConfig.INSTANCE != null && ModConfig.INSTANCE.generateExample) {
+                Path example = dir.resolve("example.json");
+                if (Files.notExists(example)) {
+                    Files.writeString(example, EXAMPLE_JSON);
+                    LOGGER.info("[ChatTodolist] 已写入示例清单: {}", example);
+                }
             }
         } catch (IOException e) {
             LOGGER.error("[ChatTodolist] 无法创建 todolist 目录", e);

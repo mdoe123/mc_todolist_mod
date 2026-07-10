@@ -30,8 +30,8 @@ cd todolistmod && gradlew.bat build
 
 构建产物在 `todolistmod/build/libs/`：
 
-- `todolistmod-1.0.0.jar` —— 这就是要放进 `mods` 文件夹的模组文件
-- `todolistmod-1.0.0-sources.jar` —— 源码包（可选）
+- `todolistmod-1.2.0.jar` —— 这就是要放进 `mods` 文件夹的模组文件
+- `todolistmod-1.2.0-sources.jar` —— 源码包（可选）
 
 > 首次构建会自动下载 Minecraft、Yarn 映射和依赖，耗时较长，属正常现象。
 > 若 `services.gradle.org` 下载 Gradle 本体很慢，可把 `gradle/wrapper/gradle-wrapper.properties`
@@ -41,8 +41,21 @@ cd todolistmod && gradlew.bat build
 ## 安装
 
 1. 确保已安装 Fabric Loader 和 Fabric API（选择与你当前 Minecraft 1.21.x 版本对应的 Fabric API）。
-2. 把 `todolistmod-1.0.0.jar` 放进 `.minecraft/mods/`。
-3. 启动游戏。首次进入世界时，模组会在**游戏根目录**生成 `todolist` 文件夹，并写入一个 `example.json` 示例清单。
+2. 把 `todolistmod-1.2.0.jar` 放进 `.minecraft/mods/`。
+3. 启动游戏。首次进入世界时，模组会在**游戏根目录**生成 `todolist` 文件夹；若配置项 `generateExample` 为 `true`（默认），还会写入一个 `example.json` 示例清单。
+
+## 配置文件
+
+模组启动时会在 `config/todolistmod.json` 读取/生成配置（JSON 格式，pretty-printed）。文件不存在时自动用默认值创建；存在但字段缺失会自动补全；JSON 格式错误时回退默认配置并打印警告，不会崩溃。
+
+| 字段 | 类型 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `generateExample` | boolean | `true` | 是否在 `todolist/` 目录首次创建时写入 `example.json` 示例清单 |
+| `editorPort` | int | `0` | 编辑器 HTTP 服务器端口，`0` 表示自动分配 |
+| `maxStepsLimit` | int | `100` | 清单最大步骤数上限（防死循环） |
+| `language` | string | `"system"` | 界面语言：`"system"`（跟随游戏语言）/ `"zh_cn"` / `"en_us"` |
+
+> 配置在 `onInitializeClient` 阶段最先加载（早于 `ChecklistStore.ensureDir()`），因此 `generateExample` 能控制首次示例清单的生成。
 
 ## 使用方法
 
@@ -208,9 +221,10 @@ cd todolistmod && gradlew.bat build
 
 基于 Google Blockly 的可视化积木编辑器：
 
-- 工具箱分「步骤」「动作」两个分类，拖拽即可搭建流程
+- 工具箱分「步骤」「动作」两个分类，默认展开（`expanded="true"`），分类间以分隔条区分，拖拽即可搭建流程
 - 步骤块含 `interactive_task`（交互步骤，带 trueDo/falseDo 嵌套槽）与 `terminal_task`（终止步骤）两类
 - 动作块含 `jumpto`（蓝）/ `print`（灰）/ `run`（橙）/ `end`（红）四类，按颜色区分
+- 工具栏提供「复制 / 粘贴 / 撤销 / 重做」四个图标按钮（14×14 线条风 SVG 图标）：复制当前选中块到剪贴板、从剪贴板粘贴块到工作区、撤销/重做工作区操作
 - 自动双向转换 Blockly 工作区 ↔ 清单 JSON，保存前校验 id 唯一性与 jumpto 目标存在性
 - Blockly 库（`blockly.min.js`，约 758 KB）已打包进 mod 资源，**离线可用**
 
@@ -245,6 +259,7 @@ cd todolistmod && gradlew.bat build
 
 ## 工作原理简述
 
+- `ModConfig`：最先加载，读写 `config/todolistmod.json`，提供 `generateExample`/`editorPort`/`maxStepsLimit`/`language` 等配置项。
 - `ChecklistStore`：扫描 `todolist/*.json`，用 Gson 解析，按 `name` 建索引。
 - `ChecklistExecutor`：流程引擎，维护当前步骤与步数计数，执行 `jumpto/print/run/end`，并用 `maxSteps` 防死循环。
 - `ChatRenderer`：把步骤渲染成聊天栏消息，选项按钮用 `ClickEvent.RUN_COMMAND` 实现可点击。

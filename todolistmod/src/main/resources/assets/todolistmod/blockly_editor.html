@@ -266,6 +266,21 @@
     </div>
     <div class="sep"></div>
     <div class="group">
+      <button id="copyBtn" data-i18n-title="tooltip.copy" title="复制">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+      </button>
+      <button id="pasteBtn" data-i18n-title="tooltip.paste" title="粘贴">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+      </button>
+      <button id="undoBtn" data-i18n-title="tooltip.undo" title="撤销">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>
+      </button>
+      <button id="redoBtn" data-i18n-title="tooltip.redo" title="重做">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"></path></svg>
+      </button>
+    </div>
+    <div class="sep"></div>
+    <div class="group">
       <label class="field"><span>name</span>
         <input type="text" id="f-name" placeholder="清单名称" style="width:150px" data-i18n-placeholder="placeholder.name"></label>
       <label class="field"><span>type</span>
@@ -299,11 +314,12 @@
 
 <!-- Blockly 工具箱（XML 定义） -->
 <xml id="toolbox" style="display:none">
-  <category name="步骤" data-i18n-cat="cat.steps">
+  <category name="步骤" data-i18n-cat="cat.steps" expanded="true">
     <block type="interactive_task"></block>
     <block type="terminal_task"></block>
   </category>
-  <category name="动作" data-i18n-cat="cat.actions">
+  <sep gap="20"></sep>
+  <category name="动作" data-i18n-cat="cat.actions" expanded="true">
     <block type="jumpto"></block>
     <block type="print"></block>
     <block type="run"></block>
@@ -430,7 +446,13 @@ var I18N = {
     'theme.light': '浅',
     'theme.auto': '自',
     'tooltip.theme': '切换浅色/深色/跟随系统',
-    'tooltip.lang': '切换语言'
+    'tooltip.lang': '切换语言',
+    'tooltip.copy': '复制选中块',
+    'tooltip.paste': '粘贴块',
+    'tooltip.undo': '撤销',
+    'tooltip.redo': '重做',
+    'msg.copied': '已复制到剪贴板',
+    'msg.no_block_selected': '请先选中一个块'
   },
   'en': {
     'app.title.block': 'Checklist Editor - Block Mode · Chat Todolist',
@@ -499,7 +521,13 @@ var I18N = {
     'theme.light': 'Light',
     'theme.auto': 'Auto',
     'tooltip.theme': 'Toggle light/dark/follow system',
-    'tooltip.lang': 'Switch language'
+    'tooltip.lang': 'Switch language',
+    'tooltip.copy': 'Copy selected block',
+    'tooltip.paste': 'Paste block',
+    'tooltip.undo': 'Undo',
+    'tooltip.redo': 'Redo',
+    'msg.copied': 'Copied to clipboard',
+    'msg.no_block_selected': 'Please select a block first'
   }
 };
 var currentLang = localStorage.getItem('lang') || (navigator.language.startsWith('zh') ? 'zh' : 'en');
@@ -1124,6 +1152,44 @@ window.addEventListener('resize', function () {
 document.getElementById('saveBtn').addEventListener('click', save);
 document.getElementById('newBtn').addEventListener('click', newFile);
 document.getElementById('deleteBtn').addEventListener('click', deleteFile);
+
+/* 复制：复制当前选中的块到剪贴板 */
+document.getElementById('copyBtn').addEventListener('click', function () {
+  if (!workspace) return;
+  var selected = Blockly.selected;
+  if (selected) {
+    Blockly.clipboard.copy(selected);
+    showStatus(t('msg.copied'));
+  } else {
+    showStatus(t('msg.no_block_selected'), true);
+  }
+});
+
+/* 粘贴：从剪贴板粘贴块到工作区 */
+document.getElementById('pasteBtn').addEventListener('click', function () {
+  if (!workspace) return;
+  if (Blockly.clipboard.paste) {
+    Blockly.clipboard.paste(workspace);
+  } else if (Blockly.Xml && Blockly.Xml.domToBlock) {
+    // 兼容旧版 API
+    if (Blockly.clipboard) {
+      var xml = Blockly.Xml.textToDom(Blockly.clipboard);
+      Blockly.Xml.domToBlock(xml, workspace);
+    }
+  }
+});
+
+/* 撤销 */
+document.getElementById('undoBtn').addEventListener('click', function () {
+  if (!workspace) return;
+  workspace.undo(false);
+});
+
+/* 重做 */
+document.getElementById('redoBtn').addEventListener('click', function () {
+  if (!workspace) return;
+  workspace.undo(true);
+});
 
 /* ============================================================
  * 十五、初始化

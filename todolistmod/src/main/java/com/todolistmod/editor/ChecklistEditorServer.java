@@ -141,9 +141,19 @@ public final class ChecklistEditorServer {
         return null;
     }
 
+    /** 为响应添加安全头：禁止 MIME 嗅探、禁止被嵌入 iframe、限制 CSP 仅允许内联脚本与本地资源 */
+    private static void applySecurityHeaders(HttpExchange exchange) {
+        var headers = exchange.getResponseHeaders();
+        headers.set("X-Content-Type-Options", "nosniff");
+        headers.set("X-Frame-Options", "DENY");
+        // 编辑器页面为纯内联脚本 + 本地 /assets/blockly/ 资源，不允许外部源
+        headers.set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'");
+    }
+
     /** 发送 JSON 响应。 */
     private static void sendJson(HttpExchange exchange, int code, String json) throws IOException {
         byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
+        applySecurityHeaders(exchange);
         exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
         exchange.sendResponseHeaders(code, bytes.length);
         try (OutputStream os = exchange.getResponseBody()) {
@@ -153,6 +163,7 @@ public final class ChecklistEditorServer {
 
     /** 发送原始字节响应。 */
     private static void sendBytes(HttpExchange exchange, int code, byte[] data, String contentType) throws IOException {
+        applySecurityHeaders(exchange);
         exchange.getResponseHeaders().set("Content-Type", contentType);
         exchange.sendResponseHeaders(code, data.length);
         try (OutputStream os = exchange.getResponseBody()) {
@@ -192,9 +203,12 @@ public final class ChecklistEditorServer {
                 String method = exchange.getRequestMethod();
 
                 // 安全校验 2：所有 /api/* 请求必须携带正确的 secret token（防 CSRF）
+                // 使用常量时间比较，防时序侧信道
                 if (path.startsWith("/api/")) {
                     String token = getQueryParam(exchange, "token");
-                    if (token == null || !token.equals(secretToken)) {
+                    if (token == null || !java.security.MessageDigest.isEqual(
+                            token.getBytes(StandardCharsets.UTF_8),
+                            secretToken.getBytes(StandardCharsets.UTF_8))) {
                         safeSend(exchange, 403, "{\"error\":\"forbidden: invalid token\"}");
                         return;
                     }
@@ -304,6 +318,11 @@ public final class ChecklistEditorServer {
             }
             if (!Files.exists(target)) {
                 safeSend(exchange, 404, "{\"error\":\"not found\"}");
+                return;
+            }
+            long size = Files.size(target);
+            if (size > 1_048_576) { // 1MB
+                safeSend(exchange, 413, "{\"error\":\"file too large\"}");
                 return;
             }
             String content = Files.readString(target, StandardCharsets.UTF_8);
