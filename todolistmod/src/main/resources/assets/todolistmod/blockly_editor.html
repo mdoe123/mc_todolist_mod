@@ -326,6 +326,9 @@ var files = [];              // /api/list 返回的文件列表
 var dirty = false;           // 工作区是否有未保存改动
 var suppressDirty = false;   // 程序化操作时抑制 dirty 标志
 
+// CSRF 防护 token：从页面 URL 查询参数读取，所有 /api/* 请求需携带
+const TOKEN = new URLSearchParams(location.search).get('token') || '';
+
 var statusEl = document.getElementById('status');
 var fileListEl = document.getElementById('fileList');
 var nameInput = document.getElementById('f-name');
@@ -690,7 +693,7 @@ function validateWorkspace() {
  * ============================================================ */
 async function refreshList() {
   try {
-    var res = await fetch('/api/list');
+    var res = await fetch('/api/list?token=' + encodeURIComponent(TOKEN));
     if (!res.ok) throw new Error('HTTP ' + res.status);
     files = await res.json();
   } catch (e) {
@@ -729,7 +732,7 @@ async function loadFile(filename) {
   // 有未保存改动时提示
   if (dirty && !confirm('有未保存改动，是否丢弃并加载 ' + filename + ' ？')) return;
   try {
-    var res = await fetch('/api/load?file=' + encodeURIComponent(filename));
+    var res = await fetch('/api/load?file=' + encodeURIComponent(filename) + '&token=' + encodeURIComponent(TOKEN));
     if (!res.ok) {
       var t = await res.text();
       throw new Error(t || ('HTTP ' + res.status));
@@ -763,7 +766,7 @@ async function save() {
   var json = JSON.stringify(jsonObj, null, 2);
   // 3. POST 保存
   try {
-    var res = await fetch('/api/save?file=' + encodeURIComponent(currentFile), {
+    var res = await fetch('/api/save?file=' + encodeURIComponent(currentFile) + '&token=' + encodeURIComponent(TOKEN), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: json
@@ -786,7 +789,7 @@ async function newFile() {
   if (!/\.json$/i.test(name)) name += '.json';
   if (/[\\\/]/.test(name)) { showStatus('文件名不能包含路径分隔符', true); return; }
   try {
-    var res = await fetch('/api/new?file=' + encodeURIComponent(name), { method: 'POST' });
+    var res = await fetch('/api/new?file=' + encodeURIComponent(name) + '&token=' + encodeURIComponent(TOKEN), { method: 'POST' });
     if (res.status === 409) { showStatus('文件已存在: ' + name, true); return; }
     if (!res.ok) {
       var t = await res.text();
@@ -804,7 +807,7 @@ async function deleteFile() {
   if (!currentFile) { showStatus('未加载文件', true); return; }
   if (!confirm('确认删除文件 ' + currentFile + ' ？此操作不可恢复。')) return;
   try {
-    var res = await fetch('/api/delete?file=' + encodeURIComponent(currentFile), { method: 'DELETE' });
+    var res = await fetch('/api/delete?file=' + encodeURIComponent(currentFile) + '&token=' + encodeURIComponent(TOKEN), { method: 'DELETE' });
     if (!res.ok) {
       var t = await res.text();
       throw new Error(t || ('HTTP ' + res.status));
@@ -830,9 +833,9 @@ document.getElementById('modeFormBtn').addEventListener('click', function () {
   if (dirty && !confirm('有未保存改动，是否丢弃？')) return;
   var target = '/';
   if (currentFile) {
-    target = '/?mode=form&file=' + encodeURIComponent(currentFile);
+    target = '/?mode=form&file=' + encodeURIComponent(currentFile) + '&token=' + encodeURIComponent(TOKEN);
   } else {
-    target = '/?mode=form';
+    target = '/?mode=form&token=' + encodeURIComponent(TOKEN);
   }
   location.href = target;
 });

@@ -204,19 +204,8 @@ public class TodoListCommand {
     private static int runEditNoName(CommandContext<FabricClientCommandSource> ctx) {
         FabricClientCommandSource src = ctx.getSource();
         ChecklistEditorServer.ensureStarted();
-        String url = ChecklistEditorServer.baseUrl() + "/";
-        try {
-            if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
-                Desktop.getDesktop().browse(URI.create(url));
-                src.sendFeedback(Text.literal("已在浏览器打开编辑器。").formatted(Formatting.GREEN));
-            } else {
-                src.sendFeedback(Text.literal("无法自动打开浏览器，请手动访问: " + url)
-                        .formatted(Formatting.YELLOW));
-            }
-        } catch (Exception e) {
-            src.sendFeedback(Text.literal("打开浏览器失败: " + e.getMessage() + "，请手动访问: " + url)
-                    .formatted(Formatting.YELLOW));
-        }
+        String url = ChecklistEditorServer.baseUrl() + "/?token=" + ChecklistEditorServer.getSecretToken();
+        openBrowser(src, url);
         return 1;
     }
 
@@ -232,14 +221,24 @@ public class TodoListCommand {
         Entry entry = ChecklistStore.find(name);
         // 启动编辑器服务器（若未运行）
         ChecklistEditorServer.ensureStarted();
-        String url = ChecklistEditorServer.baseUrl() + "/";
+        String token = ChecklistEditorServer.getSecretToken();
+        String url;
         if (entry != null) {
-            url += "?file=" + URLEncoder.encode(entry.file.getFileName().toString(), StandardCharsets.UTF_8);
+            url = ChecklistEditorServer.baseUrl() + "/?file="
+                    + URLEncoder.encode(entry.file.getFileName().toString(), StandardCharsets.UTF_8)
+                    + "&token=" + token;
             src.sendFeedback(Text.literal("清单文件路径: " + entry.file.toAbsolutePath())
                     .formatted(Formatting.AQUA));
         } else {
+            url = ChecklistEditorServer.baseUrl() + "/?token=" + token;
             src.sendFeedback(Text.literal("未找到清单: " + name + "，已打开编辑器").formatted(Formatting.YELLOW));
         }
+        openBrowser(src, url);
+        return 1;
+    }
+
+    /** 尝试在浏览器打开 URL，失败时提示手动访问 */
+    private static void openBrowser(FabricClientCommandSource src, String url) {
         try {
             if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
                 Desktop.getDesktop().browse(URI.create(url));
@@ -252,7 +251,6 @@ public class TodoListCommand {
             src.sendFeedback(Text.literal("打开浏览器失败: " + e.getMessage() + "，请手动访问: " + url)
                     .formatted(Formatting.YELLOW));
         }
-        return 1;
     }
 
     /**

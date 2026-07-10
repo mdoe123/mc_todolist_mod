@@ -118,12 +118,12 @@ public class ChecklistExecutor {
                         finished = true;
                         return;
                     }
-                    stepCount++;
-                    if (checklist.maxSteps > 0 && stepCount > checklist.maxSteps) {
+                    if (checklist.maxSteps > 0 && stepCount >= checklist.maxSteps) {
                         ChatRenderer.printPlain("已达最大步数限制 (" + checklist.maxSteps + ")，清单终止。");
                         finished = true;
                         return;
                     }
+                    stepCount++;
                     stepHistory.addLast(currentTask);
                     currentTask = target;
                     renderCurrent();
@@ -182,9 +182,12 @@ public class ChecklistExecutor {
             return;
         }
         String cmd = command.trim();
-        while (cmd.startsWith("/")) {
-            cmd = cmd.substring(1);
+        // 去除前导斜杠（支持多个，如 "///time set day"）
+        int start = 0;
+        while (start < cmd.length() && cmd.charAt(start) == '/') {
+            start++;
         }
+        cmd = cmd.substring(start);
         ClientPlayNetworkHandler handler = client.player.networkHandler;
         handler.sendChatCommand(cmd);
     }

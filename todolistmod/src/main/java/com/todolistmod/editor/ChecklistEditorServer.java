@@ -29,6 +29,8 @@ import java.util.Map;
 public final class ChecklistEditorServer {
     private static HttpServer server;
     private static int port;
+    /** 一次性启动密钥：所有 /api/* 请求必须携带此密钥，防 CSRF 与 DNS Rebinding */
+    private static String secretToken;
 
     /** 新建清单时的默认模板（与 example.json 结构一致的最小空清单）。 */
     private static final String DEFAULT_TEMPLATE =
@@ -45,6 +47,10 @@ public final class ChecklistEditorServer {
             return port;
         }
         try {
+            // 生成 32 字节随机密钥（64 字符 hex），用于防 CSRF
+            byte[] bytes = new byte[32];
+            new java.security.SecureRandom().nextBytes(bytes);
+            secretToken = java.util.HexFormat.of().formatHex(bytes);
             HttpServer s = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             s.createContext("/", new EditorHandler());
             s.setExecutor(null);
@@ -62,6 +68,11 @@ public final class ChecklistEditorServer {
     /** 返回服务器基址，形如 "http://127.0.0.1:<port>"。 */
     public static synchronized String baseUrl() {
         return "http://127.0.0.1:" + port;
+    }
+
+    /** 获取当前启动密钥（用于构造编辑器 URL）。 */
+    public static synchronized String getSecretToken() {
+        return secretToken;
     }
 
     /** 停止服务器（可选调用）。 */
@@ -158,13 +169,36 @@ public final class ChecklistEditorServer {
         }
     }
 
+    /** 校验 Host 头是否为本机回环地址（含端口），防 DNS Rebinding。 */
+    private static boolean isLocalHost(String hostHeader, int serverPort) {
+        // 允许的形式：127.0.0.1:<port> / localhost:<port> / [::1]:<port>
+        return ("127.0.0.1:" + serverPort).equalsIgnoreCase(hostHeader)
+                || ("localhost:" + serverPort).equalsIgnoreCase(hostHeader)
+                || ("[::1]:" + serverPort).equalsIgnoreCase(hostHeader);
+    }
+
     /** HTTP 请求处理器：按路径与方法分发到各端点。 */
     private static final class EditorHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             try {
+                // 安全校验 1：拒绝非本机 Host 头（防 DNS Rebinding）
+                String host = exchange.getRequestHeaders().getFirst("Host");
+                if (host == null || !isLocalHost(host, port)) {
+                    safeSend(exchange, 403, "{\"error\":\"forbidden host\"}");
+                    return;
+                }
                 String path = exchange.getRequestURI().getPath();
                 String method = exchange.getRequestMethod();
+
+                // 安全校验 2：所有 /api/* 请求必须携带正确的 secret token（防 CSRF）
+                if (path.startsWith("/api/")) {
+                    String token = getQueryParam(exchange, "token");
+                    if (token == null || !token.equals(secretToken)) {
+                        safeSend(exchange, 403, "{\"error\":\"forbidden: invalid token\"}");
+                        return;
+                    }
+                }
 
                 if (path.equals("/") && "GET".equals(method)) {
                     handleIndex(exchange);
@@ -284,8 +318,13 @@ public final class ChecklistEditorServer {
                 safeSend(exchange, 400, "{\"error\":\"invalid path\"}");
                 return;
             }
-            String body = new String(
-                    exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+            // 防止过大请求体导致 OOM，限制 1MB
+            byte[] raw = exchange.getRequestBody().readNBytes(1_048_577); // 1MB + 1
+            if (raw.length > 1_048_576) {
+                safeSend(exchange, 413, "{\"error\":\"request too large\"}");
+                return;
+            }
+            String body = new String(raw, StandardCharsets.UTF_8);
             // 保存前校验：必须能被 Gson 解析为 Checklist，且含 name 与 tasks 字段，避免写入损坏文件
             try {
                 com.todolistmod.model.Checklist parsed =

@@ -214,7 +214,9 @@ cd todolistmod && gradlew.bat build
 
 ### 编辑器 HTTP API
 
-服务器由 `ChecklistEditorServer.ensureStarted()` 懒启动，基址用 `ChecklistEditorServer.baseUrl()` 获取（形如 `http://127.0.0.1:<port>`）。所有 `file` 参数为目标文件名（须以 `.json` 结尾，URL 编码），路径非法统一返回 `400 {"error":"invalid path"}`：
+服务器由 `ChecklistEditorServer.ensureStarted()` 懒启动，基址用 `ChecklistEditorServer.baseUrl()` 获取（形如 `http://127.0.0.1:<port>`）。所有 `file` 参数为目标文件名（须以 `.json` 结尾，URL 编码），路径非法统一返回 `400 {"error":"invalid path"}`。
+
+> **安全机制**：服务器仅绑定 `127.0.0.1` 回环地址；所有 `/api/*` 请求必须携带 `token` 查询参数（服务器启动时用 `SecureRandom` 生成的 64 字符 hex 密钥，通过编辑器 URL 传递给页面）；Host 头必须为 `127.0.0.1:<port>` / `localhost:<port>` / `[::1]:<port>` 之一，防 CSRF 与 DNS Rebinding。
 
 | 方法 | 路径 | 说明 | 成功响应 |
 | --- | --- | --- | --- |

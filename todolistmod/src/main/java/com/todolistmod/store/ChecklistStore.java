@@ -12,6 +12,7 @@ import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.FileTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -22,6 +23,10 @@ import java.util.stream.Stream;
 public class ChecklistStore {
     public static final Logger LOGGER = LoggerFactory.getLogger("ChatTodolist");
     private static final Gson GSON = new Gson();
+    /** 上次扫描时目录的最后修改时间，用于检测是否需要重新加载 */
+    private static FileTime lastDirModTime;
+    /** 缓存的全量加载结果 */
+    private static Map<String, Entry> cachedEntries;
 
     /** 首次运行时写入的通用演示清单，演示交互步骤、终止步骤与四种动作（print/run/jumpto/end）。 */
     private static final String EXAMPLE_JSON = """
@@ -105,13 +110,25 @@ public class ChecklistStore {
         }
     }
 
-    /** 重新扫描目录并加载全部 .json 清单，按清单 name 建立索引（重名时保留先出现的） */
+    /** 重新扫描目录并加载全部 .json 清单，按清单 name 建立索引（重名时保留先出现的）。
+     * <p>采用基于目录修改时间的缓存：仅当目录有变更时才重新扫描，避免每次 Tab 补全都触发全量 I/O。</p> */
     public static Map<String, Entry> loadAll() {
-        Map<String, Entry> map = new LinkedHashMap<>();
         Path dir = getDir();
         if (!Files.isDirectory(dir)) {
-            return map;
+            cachedEntries = null;
+            lastDirModTime = null;
+            return new LinkedHashMap<>();
         }
+        try {
+            FileTime currentMod = Files.getLastModifiedTime(dir);
+            if (cachedEntries != null && currentMod.equals(lastDirModTime)) {
+                return cachedEntries;
+            }
+            lastDirModTime = currentMod;
+        } catch (IOException e) {
+            // 无法获取修改时间，回退到每次重新扫描
+        }
+        Map<String, Entry> map = new LinkedHashMap<>();
         try (Stream<Path> stream = Files.list(dir)) {
             stream.filter(p -> p.toString().endsWith(".json")).forEach(p -> {
                 try (Reader reader = Files.newBufferedReader(p)) {
@@ -128,6 +145,7 @@ public class ChecklistStore {
         } catch (IOException e) {
             LOGGER.error("[ChatTodolist] 读取 todolist 目录失败", e);
         }
+        cachedEntries = map;
         return map;
     }
 
