@@ -8,7 +8,7 @@
     "mdoe123"
   ],
   "contact": {"homepage": "https://github.com/mdoe123"},
-  "license": "GPL-3.0",
+  "license": "LGPL-3.0",
   "icon": "assets/todolistmod/icon.png",
   "environment": "client",
   "entrypoints": {

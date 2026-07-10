@@ -292,4 +292,4 @@ cd todolistmod && gradlew.bat build
 
 ## 许可证
 
-GPL-3.0。详见 [LICENSE](LICENSE)。
+LGPL-3.0。详见 [LICENSE](LICENSE)。
