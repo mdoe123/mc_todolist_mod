@@ -871,7 +871,7 @@ function applyTheme() {
   applyBlocklyTheme();
 }
 themeBtn.addEventListener('click', function () {
-  themeMode = themeMode === 'auto' ? 'light' : themeMode === 'light' ? 'dark' : 'auto';
+  themeMode = themeMode === 'auto' ? 'dark' : themeMode === 'dark' ? 'light' : 'auto';
   localStorage.setItem('theme', themeMode);
   applyTheme();
 });

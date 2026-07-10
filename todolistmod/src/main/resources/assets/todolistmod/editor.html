@@ -793,7 +793,7 @@ function applyTheme() {
   themeBtn.textContent = themeMode === 'dark' ? '☾ 深' : themeMode === 'light' ? '☀ 浅' : '☀/☾ 自';
 }
 themeBtn.addEventListener('click', function () {
-  themeMode = themeMode === 'auto' ? 'light' : themeMode === 'light' ? 'dark' : 'auto';
+  themeMode = themeMode === 'auto' ? 'dark' : themeMode === 'dark' ? 'light' : 'auto';
   localStorage.setItem('theme', themeMode);
   applyTheme();
 });
