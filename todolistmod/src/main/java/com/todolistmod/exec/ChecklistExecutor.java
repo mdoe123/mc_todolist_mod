@@ -246,15 +246,19 @@ public class ChecklistExecutor {
 
     // ===== Minecraft 版本兼容性校验 =====
 
-    /** 解析版本字符串为 int[3]，缺失补 0。如 "1.21" → [1,21,0] */
+    /** 解析版本字符串为 int[3]，缺失补 0。如 "1.21" → [1,21,0]。解析失败返回 null。 */
     private static int[] parseVersion(String s) {
-        if (s == null || s.isBlank()) return new int[]{0, 0, 0};
-        String[] parts = s.trim().split("\\.");
-        int[] v = new int[3];
-        for (int i = 0; i < 3; i++) {
-            v[i] = i < parts.length ? Integer.parseInt(parts[i]) : 0;
+        if (s == null || s.isBlank()) return null;
+        try {
+            String[] parts = s.trim().split("\\.");
+            int[] v = new int[3];
+            for (int i = 0; i < 3; i++) {
+                v[i] = i < parts.length ? Integer.parseInt(parts[i]) : 0;
+            }
+            return v;
+        } catch (NumberFormatException e) {
+            return null;
         }
-        return v;
     }
 
     /** 比较两个 int[3] 版本：a < b 返回 -1，相等 0，a > b 返回 1 */
@@ -266,25 +270,27 @@ public class ChecklistExecutor {
         return 0;
     }
 
-    /** 获取 max 版本的排他上界（不含）。3 段含 max 本身（patch+1）；2 段视为下个 minor；1 段视为下个 major */
+    /** 获取 max 版本的排他上界（不含）。3 段含 max 本身（patch+1）；2 段视为下个 minor；1 段视为下个 major。
+     * 解析失败（如含非数字字符）返回 null。 */
     private static int[] getMaxUpperBound(String maxStr) {
-        String[] parts = maxStr.trim().split("\\.");
-        int[] v = new int[3];
-        for (int i = 0; i < Math.min(3, parts.length); i++) {
-            v[i] = Integer.parseInt(parts[i]);
+        try {
+            String[] parts = maxStr.trim().split("\\.");
+            int[] v = new int[3];
+            for (int i = 0; i < Math.min(3, parts.length); i++) {
+                v[i] = Integer.parseInt(parts[i]);
+            }
+            // 返回排他上界（不含）：current >= upperBound 即视为过高
+            if (parts.length >= 3) {
+                v[2] = v[2] + 1;
+            } else if (parts.length == 2) {
+                v[1] = v[1] + 1;
+            } else {
+                v[0] = v[0] + 1;
+            }
+            return v;
+        } catch (NumberFormatException e) {
+            return null;
         }
-        // 返回排他上界（不含）：current >= upperBound 即视为过高
-        if (parts.length >= 3) {
-            // 满三段：含 max 本身，上界 = patch + 1
-            v[2] = v[2] + 1;
-        } else if (parts.length == 2) {
-            // 两段：兼容整个 minor 系列，上界 = 下个 minor
-            v[1] = v[1] + 1;
-        } else {
-            // 一段（或更少）：兼容整个 major 系列，上界 = 下个 major
-            v[0] = v[0] + 1;
-        }
-        return v;
     }
 
     /**
@@ -292,32 +298,43 @@ public class ChecklistExecutor {
      * @return null 表示兼容，否则返回 translatable key（version_too_low / version_too_high）
      */
     public static String checkVersionCompatibility(Checklist checklist) {
-        var mcOpt = FabricLoader.getInstance().getModContainer("minecraft");
-        if (mcOpt.isEmpty()) return null; // 无法获取，跳过校验
-        String currentStr = mcOpt.get().getMetadata().getVersion().getFriendlyString();
+        String currentStr = getCurrentMcVersion();
+        if (currentStr == null) return null;
         int[] current = parseVersion(currentStr);
+        if (current == null) return null; // 当前版本解析失败，跳过校验
 
         if (checklist.mcVersionMin != null && !checklist.mcVersionMin.isBlank()) {
             int[] min = parseVersion(checklist.mcVersionMin);
-            if (compareVersions(current, min) < 0) {
+            if (min != null && compareVersions(current, min) < 0) {
                 return "todolist.do.version_too_low";
             }
         }
         if (checklist.mcVersionMax != null && !checklist.mcVersionMax.isBlank()) {
             int[] upperBound = getMaxUpperBound(checklist.mcVersionMax);
-            if (compareVersions(current, upperBound) >= 0) {
+            if (upperBound != null && compareVersions(current, upperBound) >= 0) {
                 return "todolist.do.version_too_high";
             }
         }
         return null;
     }
 
+    /** 获取当前 Minecraft 版本的友好字符串；无法获取时返回 null */
+    private static String getCurrentMcVersion() {
+        var mcOpt = FabricLoader.getInstance().getModContainer("minecraft");
+        if (mcOpt.isEmpty()) return null;
+        var metadata = mcOpt.get().getMetadata();
+        if (metadata == null) return null;
+        var version = metadata.getVersion();
+        if (version == null) return null;
+        return version.getFriendlyString();
+    }
+
     /** 渲染版本不兼容警告与确认按钮 */
     private void renderVersionWarning(String errKey) {
         String minStr = checklist.mcVersionMin == null || checklist.mcVersionMin.isBlank() ? "*" : checklist.mcVersionMin;
         String maxStr = checklist.mcVersionMax == null || checklist.mcVersionMax.isBlank() ? "*" : checklist.mcVersionMax;
-        var mcOpt = FabricLoader.getInstance().getModContainer("minecraft");
-        String currentStr = mcOpt.isPresent() ? mcOpt.get().getMetadata().getVersion().getFriendlyString() : "?";
+        String currentStr = getCurrentMcVersion();
+        if (currentStr == null) currentStr = "?";
 
         ChatRenderer.printPlain(Text.translatable("todolist.do.version_warning",
                 checklist.name == null ? "?" : checklist.name, minStr, maxStr, currentStr)

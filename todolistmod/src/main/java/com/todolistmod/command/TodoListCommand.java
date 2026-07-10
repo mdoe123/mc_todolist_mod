@@ -15,13 +15,12 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.text.ClickEvent;
+import net.minecraft.text.HoverEvent;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 
-import java.awt.Desktop;
-import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -215,7 +214,7 @@ public class TodoListCommand {
         FabricClientCommandSource src = ctx.getSource();
         ChecklistEditorServer.ensureStarted();
         String url = ChecklistEditorServer.baseUrl() + "/?token=" + ChecklistEditorServer.getSecretToken();
-        openBrowser(src, url);
+        sendClickableUrl(src, url);
         return 1;
     }
 
@@ -243,24 +242,20 @@ public class TodoListCommand {
             url = ChecklistEditorServer.baseUrl() + "/?token=" + token;
             src.sendFeedback(Text.translatable("todolist.edit.not_found", name).formatted(Formatting.YELLOW));
         }
-        openBrowser(src, url);
+        sendClickableUrl(src, url);
         return 1;
     }
 
-    /** 尝试在浏览器打开 URL，失败时提示手动访问 */
-    private static void openBrowser(FabricClientCommandSource src, String url) {
-        try {
-            if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
-                Desktop.getDesktop().browse(URI.create(url));
-                src.sendFeedback(Text.translatable("todolist.edit.opened").formatted(Formatting.GREEN));
-            } else {
-                src.sendFeedback(Text.translatable("todolist.edit.open_failed", url)
-                        .formatted(Formatting.YELLOW));
-            }
-        } catch (Exception e) {
-            src.sendFeedback(Text.translatable("todolist.edit.exception", e.getMessage(), url)
-                    .formatted(Formatting.YELLOW));
-        }
+    /**
+     * 输出可点击的编辑器 URL，点击在浏览器打开。
+     */
+    private static void sendClickableUrl(FabricClientCommandSource src, String url) {
+        MutableText link = Text.translatable("todolist.edit.click_to_open")
+                .styled(s -> s.withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url))
+                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                                Text.literal(url).formatted(Formatting.GRAY)))
+                        .withFormatting(Formatting.UNDERLINE, Formatting.AQUA));
+        src.sendFeedback(link);
     }
 
     /**

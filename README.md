@@ -8,10 +8,10 @@
 
 | 项 | 版本 |
 | --- | --- |
-| Minecraft | 1.21.1 |
+| Minecraft | 1.21.x（1.21 - 1.21.8+） |
 | Fabric Loader | ≥ 0.16.14 |
-| Fabric API | ≥ 0.116.13+1.21.1 |
-| Java | 21（Java 17 不适用 1.21.1，1.21+ 必须 Java 21） |
+| Fabric API | ≥ 0.100.0（对应 1.21.x 的版本） |
+| Java | 21（1.21+ 必须 Java 21） |
 
 > 这是**纯客户端**模组（`environment: client`），不需要装在服务端。
 > 但清单里的 `run` 动作会以你的身份向服务器发送指令，因此需要你有对应权限。
@@ -40,7 +40,7 @@ cd todolistmod && gradlew.bat build
 
 ## 安装
 
-1. 确保已安装 Fabric Loader 和 Fabric API（1.21.1 版本）。
+1. 确保已安装 Fabric Loader 和 Fabric API（选择与你当前 Minecraft 1.21.x 版本对应的 Fabric API）。
 2. 把 `todolistmod-1.0.0.jar` 放进 `.minecraft/mods/`。
 3. 启动游戏。首次进入世界时，模组会在**游戏根目录**生成 `todolist` 文件夹，并写入一个 `example.json` 示例清单。
 
@@ -55,8 +55,8 @@ cd todolistmod && gradlew.bat build
 | `/todolist end <清单名>` | 结束正在执行的清单（支持 Tab 补全清单名） |
 | `/todolist back <清单名>` | 返回上一步（支持连续返回多次；支持 Tab 补全清单名）。注意：已执行的 `run`/`print` 副作用不可撤销，仅回到上一步交互界面 |
 | `/todolist is` | 查看当前正在执行的清单及其进度 |
-| `/todolist edit` | 在默认浏览器打开 HTML 编辑器（不预选任何清单） |
-| `/todolist edit <清单名>` | 在默认浏览器打开 HTML 编辑器并预选该清单（支持 Tab 补全清单名）；未找到时仍打开编辑器并提示 |
+| `/todolist edit` | 在聊天栏输出可点击的编辑器链接（不预选任何清单），点击后用浏览器打开 |
+| `/todolist edit <清单名>` | 在聊天栏输出可点击的编辑器链接并预选该清单（支持 Tab 补全清单名）；未找到时仍输出链接并提示 |
 
 > 编辑器内置两种模式，顶部「表单 / 块」按钮切换：**表单模式**为结构化卡片表单 + 右侧实时 JSON 预览；**块模式**为基于 Google Blockly 的可视化积木编辑（拖拽「步骤」与「动作」块搭建流程，自动转换为清单 JSON）。两种模式编辑同一份文件，切换时若有未保存改动会提示。
 
@@ -191,7 +191,8 @@ cd todolistmod && gradlew.bat build
 ## HTML 清单编辑器
 
 执行 `/todolist edit <清单名>` 时，模组会在本地启动一个 HTTP 服务器（仅绑定 `127.0.0.1` 回环地址），
-并用默认浏览器打开 HTML 编辑器页面。编辑器支持新建、打开、保存、删除清单文件，免去手写 JSON 的麻烦。
+并在聊天栏输出一个**可点击的链接**（`ClickEvent.OPEN_URL`），点击后才会用浏览器打开编辑器页面——不再自动弹出浏览器。
+编辑器支持新建、打开、保存、删除清单文件，免去手写 JSON 的麻烦。
 
 编辑器提供两种编辑模式，通过顶部「表单 / 块」切换按钮切换：
 
