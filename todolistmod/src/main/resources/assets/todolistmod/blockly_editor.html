@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>清单编辑器 - 块模式 · Chat Todolist</title>
+<title data-i18n="app.title.block">清单编辑器 - 块模式 · Chat Todolist</title>
 <style>
   /* ---------- 主题变量（与 editor.html 保持一致） ---------- */
   :root {
@@ -240,51 +240,52 @@
 </head>
 <body>
   <div id="toolbar">
-    <span class="title">清单编辑器 - 块模式</span>
+    <span class="title" data-i18n="app.title.block">清单编辑器 - 块模式</span>
     <div class="sep"></div>
     <div class="mode-switch">
-      <button id="modeFormBtn">表单</button>
-      <button id="modeBlockBtn" class="active">块</button>
+      <button id="modeFormBtn" data-i18n="mode.form">表单</button>
+      <button id="modeBlockBtn" class="active" data-i18n="mode.block">块</button>
     </div>
     <div class="sep"></div>
     <div class="group">
-      <button id="saveBtn">保存</button>
-      <button id="newBtn">新建</button>
-      <button id="deleteBtn" class="danger">删除</button>
+      <button id="saveBtn" data-i18n="btn.save">保存</button>
+      <button id="newBtn" data-i18n="btn.new">新建</button>
+      <button id="deleteBtn" class="danger" data-i18n="btn.delete">删除</button>
     </div>
     <div class="sep"></div>
     <div class="group">
       <label class="field"><span>name</span>
-        <input type="text" id="f-name" placeholder="清单名称" style="width:150px"></label>
+        <input type="text" id="f-name" placeholder="清单名称" style="width:150px" data-i18n-placeholder="placeholder.name"></label>
       <label class="field"><span>type</span>
         <input type="text" value="flow" readonly style="width:70px"></label>
       <label class="field"><span>maxSteps</span>
-        <input type="number" id="f-maxsteps" class="compact" placeholder="0=不限"></label>
+        <input type="number" id="f-maxsteps" class="compact" placeholder="0=不限" data-i18n-placeholder="placeholder.maxsteps"></label>
     </div>
     <div class="spacer"></div>
     <div class="group">
-      <button id="themeBtn" title="切换浅色/深色/跟随系统">☀/☾</button>
+      <button id="themeBtn" title="切换浅色/深色/跟随系统" data-i18n-title="tooltip.theme">☀/☾</button>
+      <button id="langBtn" title="切换语言" data-i18n-title="tooltip.lang">中/EN</button>
       <span class="status" id="status"></span>
     </div>
   </div>
 
   <div id="main">
     <div id="sidebar">
-      <div class="sidebar-head">文件列表</div>
+      <div class="sidebar-head" data-i18n="sidebar.files">文件列表</div>
       <div id="fileList"></div>
     </div>
     <div id="blockly-container">
-      <div id="workspace-hint">从左侧选择或新建一个清单开始编辑</div>
+      <div id="workspace-hint" data-i18n="hint.workspace">从左侧选择或新建一个清单开始编辑</div>
     </div>
   </div>
 
 <!-- Blockly 工具箱（XML 定义） -->
 <xml id="toolbox" style="display:none">
-  <category name="步骤">
+  <category name="步骤" data-i18n-cat="cat.steps">
     <block type="interactive_task"></block>
     <block type="terminal_task"></block>
   </category>
-  <category name="动作">
+  <category name="动作" data-i18n-cat="cat.actions">
     <block type="jumpto"></block>
     <block type="print"></block>
     <block type="run"></block>
@@ -335,6 +336,182 @@ var nameInput = document.getElementById('f-name');
 var maxStepsInput = document.getElementById('f-maxsteps');
 var themeBtn = document.getElementById('themeBtn');
 var workspaceHint = document.getElementById('workspace-hint');
+var langBtn = document.getElementById('langBtn');
+
+/* ============================================================
+ * 多语言支持（i18n）
+ * ============================================================ */
+var I18N = {
+  'zh': {
+    'app.title.block': '清单编辑器 - 块模式 · Chat Todolist',
+    'btn.save': '保存',
+    'btn.new': '新建',
+    'btn.delete': '删除',
+    'mode.form': '表单',
+    'mode.block': '块',
+    'sidebar.files': '文件列表',
+    'hint.workspace': '从左侧选择或新建一个清单开始编辑',
+    'hint.no_files': '暂无文件，点击「新建」创建',
+    'hint.empty_dir': 'todolist 目录为空，点击「新建」创建清单',
+    'placeholder.name': '清单名称',
+    'placeholder.maxsteps': '0=不限',
+    'cat.steps': '步骤',
+    'cat.actions': '动作',
+    'file.steps': '步',
+    'block.interactive_task': '交互步骤',
+    'block.terminal_task': '终止步骤',
+    'block.desc': '描述',
+    'block.true_text': '点是按钮文案',
+    'block.false_text': '点否按钮文案',
+    'block.true_do': '点是后',
+    'block.false_do': '点否后',
+    'block.jumpto': '跳转到',
+    'block.print': '输出',
+    'block.run': '执行',
+    'block.end': '结束清单',
+    'tooltip.interactive_task': '交互步骤：玩家选择是/否后执行对应分支',
+    'tooltip.terminal_task': '终止步骤：只显示描述，无按钮，清单立即结束',
+    'tooltip.jumpto': '跳转到指定 id 的步骤',
+    'tooltip.print': '在聊天栏输出一行文字',
+    'tooltip.run': '以玩家身份发送指令',
+    'tooltip.end': '结束整个清单，message 可空',
+    'msg.name_empty': '清单名称(name)不能为空',
+    'msg.task_id_dup_prefix': '步骤 id ',
+    'msg.task_id_dup_suffix': ' 重复',
+    'msg.jumpto_missing_prefix': 'jumpto 目标 id ',
+    'msg.jumpto_missing_suffix': ' 不存在',
+    'msg.list_failed': '获取文件列表失败: ',
+    'msg.loaded': '已加载 ',
+    'msg.load_failed': '加载失败: ',
+    'msg.no_file_save': '未加载文件，无法保存',
+    'msg.saved': '已保存到 ',
+    'msg.save_failed': '保存失败: ',
+    'msg.input_filename': '输入新清单文件名（不带 .json 后缀会自动补全）:',
+    'msg.invalid_filename': '文件名不能包含路径分隔符',
+    'msg.file_exists': '文件已存在: ',
+    'msg.created': '已创建 ',
+    'msg.create_failed': '创建失败: ',
+    'msg.no_file': '未加载文件',
+    'msg.delete_confirm_prefix': '确认删除文件 ',
+    'msg.delete_confirm_suffix': ' ？此操作不可恢复。',
+    'msg.deleted': '已删除 ',
+    'msg.delete_failed': '删除失败: ',
+    'msg.discard_load_prefix': '有未保存改动，是否丢弃并加载 ',
+    'msg.discard_load_suffix': ' ？',
+    'msg.discard_changes': '有未保存改动，是否丢弃？',
+    'theme.dark': '深',
+    'theme.light': '浅',
+    'theme.auto': '自',
+    'tooltip.theme': '切换浅色/深色/跟随系统',
+    'tooltip.lang': '切换语言'
+  },
+  'en': {
+    'app.title.block': 'Checklist Editor - Block Mode · Chat Todolist',
+    'btn.save': 'Save',
+    'btn.new': 'New',
+    'btn.delete': 'Delete',
+    'mode.form': 'Form',
+    'mode.block': 'Blocks',
+    'sidebar.files': 'File List',
+    'hint.workspace': 'Select or create a checklist from the left to start editing',
+    'hint.no_files': 'No files. Click "New" to create one',
+    'hint.empty_dir': 'todolist directory is empty. Click "New" to create a checklist.',
+    'placeholder.name': 'Checklist name',
+    'placeholder.maxsteps': '0=unlimited',
+    'cat.steps': 'Steps',
+    'cat.actions': 'Actions',
+    'file.steps': 'steps',
+    'block.interactive_task': 'Interactive Step',
+    'block.terminal_task': 'Terminal Step',
+    'block.desc': 'Description',
+    'block.true_text': 'Yes button text',
+    'block.false_text': 'No button text',
+    'block.true_do': 'On Yes',
+    'block.false_do': 'On No',
+    'block.jumpto': 'Jump to',
+    'block.print': 'Print',
+    'block.run': 'Run',
+    'block.end': 'End Checklist',
+    'tooltip.interactive_task': 'Interactive step: player chooses yes/no to execute corresponding branch',
+    'tooltip.terminal_task': 'Terminal step: only shows description, no buttons, ends immediately',
+    'tooltip.jumpto': 'Jump to the step with the specified id',
+    'tooltip.print': 'Output a line of text in chat',
+    'tooltip.run': 'Send command as player',
+    'tooltip.end': 'End the entire checklist, message can be empty',
+    'msg.name_empty': 'Checklist name cannot be empty',
+    'msg.task_id_dup_prefix': 'Step id ',
+    'msg.task_id_dup_suffix': ' duplicated',
+    'msg.jumpto_missing_prefix': 'jumpto target id ',
+    'msg.jumpto_missing_suffix': ' does not exist',
+    'msg.list_failed': 'Failed to fetch file list: ',
+    'msg.loaded': 'Loaded ',
+    'msg.load_failed': 'Load failed: ',
+    'msg.no_file_save': 'No file loaded, cannot save',
+    'msg.saved': 'Saved to ',
+    'msg.save_failed': 'Save failed: ',
+    'msg.input_filename': 'Enter new checklist filename (.json suffix will be added automatically):',
+    'msg.invalid_filename': 'Filename cannot contain path separators',
+    'msg.file_exists': 'File already exists: ',
+    'msg.created': 'Created ',
+    'msg.create_failed': 'Create failed: ',
+    'msg.no_file': 'No file loaded',
+    'msg.delete_confirm_prefix': 'Delete file ',
+    'msg.delete_confirm_suffix': ' ? This cannot be undone.',
+    'msg.deleted': 'Deleted ',
+    'msg.delete_failed': 'Delete failed: ',
+    'msg.discard_load_prefix': 'There are unsaved changes. Discard and load ',
+    'msg.discard_load_suffix': ' ?',
+    'msg.discard_changes': 'There are unsaved changes. Discard them?',
+    'theme.dark': 'Dark',
+    'theme.light': 'Light',
+    'theme.auto': 'Auto',
+    'tooltip.theme': 'Toggle light/dark/follow system',
+    'tooltip.lang': 'Switch language'
+  }
+};
+var currentLang = localStorage.getItem('lang') || (navigator.language.startsWith('zh') ? 'zh' : 'en');
+function t(key) { return (I18N[currentLang] && I18N[currentLang][key]) || key; }
+function applyLang() {
+  // 遍历所有带 data-i18n 属性的元素，设置 textContent
+  document.querySelectorAll('[data-i18n]').forEach(function (el) {
+    el.textContent = t(el.getAttribute('data-i18n'));
+  });
+  // 遍历所有带 data-i18n-title 属性的元素，设置 title
+  document.querySelectorAll('[data-i18n-title]').forEach(function (el) {
+    el.title = t(el.getAttribute('data-i18n-title'));
+  });
+  // 遍历所有带 data-i18n-placeholder 属性的元素，设置 placeholder
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(function (el) {
+    el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+  });
+  // 更新 Blockly 工具箱分类名称
+  document.querySelectorAll('[data-i18n-cat]').forEach(function (el) {
+    el.setAttribute('name', t(el.getAttribute('data-i18n-cat')));
+  });
+  langBtn.textContent = currentLang === 'zh' ? '中' : 'EN';
+  document.documentElement.lang = currentLang;
+  // 主题按钮文案跟随语言
+  themeBtn.textContent = themeMode === 'dark' ? '☾ ' + t('theme.dark') : themeMode === 'light' ? '☀ ' + t('theme.light') : '☀/☾ ' + t('theme.auto');
+  // 刷新 Blockly 工作区（工具箱分类名 + 块 tooltip）
+  if (workspace) {
+    workspace.getAllBlocks().forEach(function (blk) {
+      if (blk.type === 'interactive_task') blk.setTooltip(t('tooltip.interactive_task'));
+      else if (blk.type === 'terminal_task') blk.setTooltip(t('tooltip.terminal_task'));
+      else if (blk.type === 'jumpto') blk.setTooltip(t('tooltip.jumpto'));
+      else if (blk.type === 'print') blk.setTooltip(t('tooltip.print'));
+      else if (blk.type === 'run') blk.setTooltip(t('tooltip.run'));
+      else if (blk.type === 'end') blk.setTooltip(t('tooltip.end'));
+    });
+    workspace.updateToolbox(document.getElementById('toolbox'));
+    Blockly.svgResize(workspace);
+  }
+}
+langBtn.addEventListener('click', function () {
+  currentLang = currentLang === 'zh' ? 'en' : 'zh';
+  localStorage.setItem('lang', currentLang);
+  applyLang();
+  renderFileList();   // 重新渲染文件列表以应用新语言
+});
 
 /* ============================================================
  * 一、自定义块定义（6 类）
@@ -344,27 +521,27 @@ var workspaceHint = document.getElementById('workspace-hint');
 Blockly.Blocks['interactive_task'] = {
   init: function () {
     this.appendDummyInput()
-        .appendField("交互步骤")
+        .appendField(t('block.interactive_task'))
         .appendField(new Blockly.FieldNumber(1), "id");
     this.appendDummyInput()
-        .appendField("描述")
+        .appendField(t('block.desc'))
         .appendField(new Blockly.FieldTextInput(""), "desc");
     this.appendDummyInput()
-        .appendField("点是按钮文案")
+        .appendField(t('block.true_text'))
         .appendField(new Blockly.FieldTextInput("是"), "trueText");
     this.appendDummyInput()
-        .appendField("点否按钮文案")
+        .appendField(t('block.false_text'))
         .appendField(new Blockly.FieldTextInput("否"), "falseText");
     this.appendStatementInput("trueDo")
         .setCheck(null)
-        .appendField("点是后");
+        .appendField(t('block.true_do'));
     this.appendStatementInput("falseDo")
         .setCheck(null)
-        .appendField("点否后");
+        .appendField(t('block.false_do'));
     this.setPreviousStatement(false);
     this.setNextStatement(false);
     this.setColour("#8B5CF6");
-    this.setTooltip("交互步骤：玩家选择是/否后执行对应分支");
+    this.setTooltip(t('tooltip.interactive_task'));
   }
 };
 
@@ -372,15 +549,15 @@ Blockly.Blocks['interactive_task'] = {
 Blockly.Blocks['terminal_task'] = {
   init: function () {
     this.appendDummyInput()
-        .appendField("终止步骤")
+        .appendField(t('block.terminal_task'))
         .appendField(new Blockly.FieldNumber(1), "id");
     this.appendDummyInput()
-        .appendField("描述")
+        .appendField(t('block.desc'))
         .appendField(new Blockly.FieldTextInput(""), "desc");
     this.setPreviousStatement(false);
     this.setNextStatement(false);
     this.setColour("#6D28D9");
-    this.setTooltip("终止步骤：只显示描述，无按钮，清单立即结束");
+    this.setTooltip(t('tooltip.terminal_task'));
   }
 };
 
@@ -388,12 +565,12 @@ Blockly.Blocks['terminal_task'] = {
 Blockly.Blocks['jumpto'] = {
   init: function () {
     this.appendDummyInput()
-        .appendField("跳转到")
+        .appendField(t('block.jumpto'))
         .appendField(new Blockly.FieldNumber(1), "id");
     this.setPreviousStatement(true);
     this.setNextStatement(true);
     this.setColour("#3B82F6");
-    this.setTooltip("跳转到指定 id 的步骤");
+    this.setTooltip(t('tooltip.jumpto'));
   }
 };
 
@@ -401,12 +578,12 @@ Blockly.Blocks['jumpto'] = {
 Blockly.Blocks['print'] = {
   init: function () {
     this.appendDummyInput()
-        .appendField("输出")
+        .appendField(t('block.print'))
         .appendField(new Blockly.FieldTextInput(""), "text");
     this.setPreviousStatement(true);
     this.setNextStatement(true);
     this.setColour("#6B7280");
-    this.setTooltip("在聊天栏输出一行文字");
+    this.setTooltip(t('tooltip.print'));
   }
 };
 
@@ -414,12 +591,12 @@ Blockly.Blocks['print'] = {
 Blockly.Blocks['run'] = {
   init: function () {
     this.appendDummyInput()
-        .appendField("执行")
+        .appendField(t('block.run'))
         .appendField(new Blockly.FieldTextInput("/"), "command");
     this.setPreviousStatement(true);
     this.setNextStatement(true);
     this.setColour("#F59E0B");
-    this.setTooltip("以玩家身份发送指令");
+    this.setTooltip(t('tooltip.run'));
   }
 };
 
@@ -427,12 +604,12 @@ Blockly.Blocks['run'] = {
 Blockly.Blocks['end'] = {
   init: function () {
     this.appendDummyInput()
-        .appendField("结束清单")
+        .appendField(t('block.end'))
         .appendField(new Blockly.FieldTextInput(""), "message");
     this.setPreviousStatement(true);
     this.setNextStatement(true);
     this.setColour("#EF4444");
-    this.setTooltip("结束整个清单，message 可空");
+    this.setTooltip(t('tooltip.end'));
   }
 };
 
@@ -657,7 +834,7 @@ function createActionBlock(action) {
 function validateWorkspace() {
   var name = nameInput.value || "";
   if (!name.trim()) {
-    return { ok: false, error: '清单名称(name)不能为空' };
+    return { ok: false, error: t('msg.name_empty') };
   }
   var topBlocks = workspace.getTopBlocks(true);
   // 收集所有 task 块 id（用于唯一性校验与 jumpto 目标存在性校验）
@@ -668,7 +845,7 @@ function validateWorkspace() {
     if (b.type === 'interactive_task' || b.type === 'terminal_task') {
       var id = parseInt(b.getFieldValue('id'), 10);
       if (taskIdSet.hasOwnProperty(id)) {
-        return { ok: false, error: '步骤 id ' + id + ' 重复' };
+        return { ok: false, error: t('msg.task_id_dup_prefix') + id + t('msg.task_id_dup_suffix') };
       }
       taskIdSet[id] = true;
       taskIds.push(id);
@@ -681,7 +858,7 @@ function validateWorkspace() {
     if (blk.type === 'jumpto') {
       var targetId = parseInt(blk.getFieldValue('id'), 10);
       if (!taskIdSet.hasOwnProperty(targetId)) {
-        return { ok: false, error: 'jumpto 目标 id ' + targetId + ' 不存在' };
+        return { ok: false, error: t('msg.jumpto_missing_prefix') + targetId + t('msg.jumpto_missing_suffix') };
       }
     }
   }
@@ -698,7 +875,7 @@ async function refreshList() {
     files = await res.json();
   } catch (e) {
     files = [];
-    showStatus('获取文件列表失败: ' + e.message, true);
+    showStatus(t('msg.list_failed') + e.message, true);
   }
   renderFileList();
   return files;
@@ -706,7 +883,7 @@ async function refreshList() {
 
 function renderFileList() {
   if (!files.length) {
-    fileListEl.innerHTML = '<div class="empty-hint">暂无文件，点击「新建」创建</div>';
+    fileListEl.innerHTML = '<div class="empty-hint">' + escapeHtml(t('hint.no_files')) + '</div>';
     return;
   }
   var html = '';
@@ -715,7 +892,7 @@ function renderFileList() {
     var active = (f.file === currentFile) ? ' active' : '';
     html += '<div class="file-item' + active + '" data-file="' + escapeAttr(f.file) + '">' +
       '<span class="file-name">' + escapeHtml(f.file) + '</span>' +
-      '<span class="file-meta">' + escapeHtml(f.name || '') + ' · ' + (f.taskCount != null ? f.taskCount : '?') + ' 步</span>' +
+      '<span class="file-meta">' + escapeHtml(f.name || '') + ' · ' + (f.taskCount != null ? f.taskCount : '?') + ' ' + escapeHtml(t('file.steps')) + '</span>' +
       '</div>';
   }
   fileListEl.innerHTML = html;
@@ -730,12 +907,12 @@ fileListEl.addEventListener('click', function (e) {
 async function loadFile(filename) {
   if (!filename) return;
   // 有未保存改动时提示
-  if (dirty && !confirm('有未保存改动，是否丢弃并加载 ' + filename + ' ？')) return;
+  if (dirty && !confirm(t('msg.discard_load_prefix') + filename + t('msg.discard_load_suffix'))) return;
   try {
     var res = await fetch('/api/load?file=' + encodeURIComponent(filename) + '&token=' + encodeURIComponent(TOKEN));
     if (!res.ok) {
-      var t = await res.text();
-      throw new Error(t || ('HTTP ' + res.status));
+      var respText = await res.text();
+      throw new Error(respText || ('HTTP ' + res.status));
     }
     var text = await res.text();
     var data = JSON.parse(text);
@@ -744,9 +921,9 @@ async function loadFile(filename) {
     dirty = false;
     renderFileList();
     if (workspaceHint) workspaceHint.classList.add('hidden');
-    showStatus('已加载 ' + filename);
+    showStatus(t('msg.loaded') + filename);
   } catch (e) {
-    showStatus('加载失败: ' + e.message, true);
+    showStatus(t('msg.load_failed') + e.message, true);
   }
 }
 
@@ -758,7 +935,7 @@ async function save() {
     return;
   }
   if (!currentFile) {
-    showStatus('未加载文件，无法保存', true);
+    showStatus(t('msg.no_file_save'), true);
     return;
   }
   // 2. 生成对象 → 字符串
@@ -772,47 +949,47 @@ async function save() {
       body: json
     });
     if (!res.ok) {
-      var t = await res.text();
-      throw new Error(t || ('HTTP ' + res.status));
+      var respText = await res.text();
+      throw new Error(respText || ('HTTP ' + res.status));
     }
     dirty = false;
-    showStatus('已保存到 ' + currentFile);
+    showStatus(t('msg.saved') + currentFile);
     await refreshList();
   } catch (e) {
-    showStatus('保存失败: ' + e.message, true);
+    showStatus(t('msg.save_failed') + e.message, true);
   }
 }
 
 async function newFile() {
-  var name = prompt('输入新清单文件名（不带 .json 后缀会自动补全）:');
+  var name = prompt(t('msg.input_filename'));
   if (!name) return;
   if (!/\.json$/i.test(name)) name += '.json';
-  if (/[\\\/]/.test(name)) { showStatus('文件名不能包含路径分隔符', true); return; }
+  if (/[\\\/]/.test(name)) { showStatus(t('msg.invalid_filename'), true); return; }
   try {
     var res = await fetch('/api/new?file=' + encodeURIComponent(name) + '&token=' + encodeURIComponent(TOKEN), { method: 'POST' });
-    if (res.status === 409) { showStatus('文件已存在: ' + name, true); return; }
+    if (res.status === 409) { showStatus(t('msg.file_exists') + name, true); return; }
     if (!res.ok) {
-      var t = await res.text();
-      throw new Error(t || ('HTTP ' + res.status));
+      var respText = await res.text();
+      throw new Error(respText || ('HTTP ' + res.status));
     }
     await refreshList();
     await loadFile(name);
-    showStatus('已创建 ' + name);
+    showStatus(t('msg.created') + name);
   } catch (e) {
-    showStatus('创建失败: ' + e.message, true);
+    showStatus(t('msg.create_failed') + e.message, true);
   }
 }
 
 async function deleteFile() {
-  if (!currentFile) { showStatus('未加载文件', true); return; }
-  if (!confirm('确认删除文件 ' + currentFile + ' ？此操作不可恢复。')) return;
+  if (!currentFile) { showStatus(t('msg.no_file'), true); return; }
+  if (!confirm(t('msg.delete_confirm_prefix') + currentFile + t('msg.delete_confirm_suffix'))) return;
   try {
     var res = await fetch('/api/delete?file=' + encodeURIComponent(currentFile) + '&token=' + encodeURIComponent(TOKEN), { method: 'DELETE' });
     if (!res.ok) {
-      var t = await res.text();
-      throw new Error(t || ('HTTP ' + res.status));
+      var respText = await res.text();
+      throw new Error(respText || ('HTTP ' + res.status));
     }
-    showStatus('已删除 ' + currentFile);
+    showStatus(t('msg.deleted') + currentFile);
     currentFile = null;
     dirty = false;
     suppressDirty = true;
@@ -822,7 +999,7 @@ async function deleteFile() {
     if (workspaceHint) workspaceHint.classList.remove('hidden');
     await refreshList();
   } catch (e) {
-    showStatus('删除失败: ' + e.message, true);
+    showStatus(t('msg.delete_failed') + e.message, true);
   }
 }
 
@@ -830,7 +1007,7 @@ async function deleteFile() {
  * 八、模式切换（表单 / 块）
  * ============================================================ */
 document.getElementById('modeFormBtn').addEventListener('click', function () {
-  if (dirty && !confirm('有未保存改动，是否丢弃？')) return;
+  if (dirty && !confirm(t('msg.discard_changes'))) return;
   var target = '/';
   if (currentFile) {
     target = '/?mode=form&file=' + encodeURIComponent(currentFile) + '&token=' + encodeURIComponent(TOKEN);
@@ -867,7 +1044,7 @@ function applyTheme() {
   } else {
     document.documentElement.removeAttribute('data-theme');
   }
-  themeBtn.textContent = themeMode === 'dark' ? '☾ 深' : themeMode === 'light' ? '☀ 浅' : '☀/☾ 自';
+  themeBtn.textContent = themeMode === 'dark' ? '☾ ' + t('theme.dark') : themeMode === 'light' ? '☀ ' + t('theme.light') : '☀/☾ ' + t('theme.auto');
   applyBlocklyTheme();
 }
 themeBtn.addEventListener('click', function () {
@@ -908,6 +1085,7 @@ document.getElementById('deleteBtn').addEventListener('click', deleteFile);
  * ============================================================ */
 (async function init() {
   applyTheme();
+  applyLang();
   initWorkspace();
   await refreshList();
   var params = new URLSearchParams(location.search);
@@ -917,7 +1095,7 @@ document.getElementById('deleteBtn').addEventListener('click', deleteFile);
   } else if (files.length) {
     await loadFile(files[0].file);
   } else {
-    showStatus('todolist 目录为空，点击「新建」创建清单');
+    showStatus(t('hint.empty_dir'));
   }
 })();
 </script>

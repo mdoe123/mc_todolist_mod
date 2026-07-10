@@ -74,19 +74,19 @@ public class TodoListCommand {
         FabricClientCommandSource src = ctx.getSource();
         Map<String, Entry> all = ChecklistStore.loadAll();
         if (all.isEmpty()) {
-            src.sendFeedback(Text.literal("未找到任何清单。请将 .json 清单文件放入游戏目录下的 todolist 文件夹。")
+            src.sendFeedback(Text.translatable("todolist.list.empty")
                     .formatted(Formatting.YELLOW));
             return 0;
         }
-        src.sendFeedback(Text.literal("共 " + all.size() + " 个清单（点击名称即可执行）：").formatted(Formatting.GOLD));
+        src.sendFeedback(Text.translatable("todolist.list.count", all.size()).formatted(Formatting.GOLD));
         for (Entry e : all.values()) {
             String name = e.checklist.name;
             int n = e.checklist.tasks == null ? 0 : e.checklist.tasks.size();
-            MutableText line = Text.literal(" - ").formatted(Formatting.GRAY);
+            MutableText line = Text.translatable("todolist.list.bullet").formatted(Formatting.GRAY);
             line.append(Text.literal(name).setStyle(Style.EMPTY
                     .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/todolist do " + name))
                     .withColor(Formatting.AQUA)));
-            line.append(Text.literal("  (" + n + " 步)").formatted(Formatting.DARK_GRAY));
+            line.append(Text.translatable("todolist.list.steps", n).formatted(Formatting.DARK_GRAY));
             src.sendFeedback(line);
         }
         return all.size();
@@ -101,21 +101,21 @@ public class TodoListCommand {
     private static int runIs(CommandContext<FabricClientCommandSource> ctx) {
         FabricClientCommandSource src = ctx.getSource();
         if (RUNNING.isEmpty()) {
-            src.sendFeedback(Text.literal("当前没有正在执行的清单。").formatted(Formatting.YELLOW));
+            src.sendFeedback(Text.translatable("todolist.is.empty").formatted(Formatting.YELLOW));
             return 0;
         }
         for (ChecklistExecutor exec : RUNNING.values()) {
             Checklist cl = exec.getChecklist();
             ChecklistTask t = exec.getCurrentTask();
-            String status;
+            MutableText statusText;
             if (exec.isFinished()) {
-                status = "已结束";
+                statusText = Text.translatable("todolist.is.status.finished");
             } else {
                 int total = cl.tasks == null ? 0 : cl.tasks.size();
-                status = "进行中: 步骤 id " + (t == null ? "?" : t.id) + "/" + total
-                        + "，已跳转 " + exec.getStepCount() + "/" + cl.maxSteps;
+                statusText = Text.translatable("todolist.is.status.running",
+                        t == null ? "?" : t.id, total, exec.getStepCount(), cl.maxSteps);
             }
-            src.sendFeedback(Text.literal(" - " + cl.name + "  [" + status + "]").formatted(Formatting.AQUA));
+            src.sendFeedback(Text.translatable("todolist.is.item", cl.name, statusText).formatted(Formatting.AQUA));
         }
         return RUNNING.size();
     }
@@ -130,13 +130,13 @@ public class TodoListCommand {
         FabricClientCommandSource src = ctx.getSource();
         String name = StringArgumentType.getString(ctx, "name");
         if (RUNNING.containsKey(name)) {
-            src.sendFeedback(Text.literal("清单 [" + name + "] 已在执行中，请先用 /todolist end " + name + " 结束。")
+            src.sendFeedback(Text.translatable("todolist.do.already_running", name, name)
                     .formatted(Formatting.YELLOW));
             return 0;
         }
         Entry entry = ChecklistStore.find(name);
         if (entry == null) {
-            src.sendFeedback(Text.literal("未找到清单: " + name + "。使用 /todolist list 查看可用清单。")
+            src.sendFeedback(Text.translatable("todolist.do.not_found", name)
                     .formatted(Formatting.RED));
             return 0;
         }
@@ -163,11 +163,11 @@ public class TodoListCommand {
         String name = StringArgumentType.getString(ctx, "name");
         ChecklistExecutor exec = RUNNING.remove(name);
         if (exec == null) {
-            src.sendFeedback(Text.literal("没有正在执行的清单: " + name).formatted(Formatting.YELLOW));
+            src.sendFeedback(Text.translatable("todolist.end.not_running", name).formatted(Formatting.YELLOW));
             return 0;
         }
         ClickTokens.clearForExecutor(exec);
-        src.sendFeedback(Text.literal("已结束清单: " + name).formatted(Formatting.GREEN));
+        src.sendFeedback(Text.translatable("todolist.end.ended", name).formatted(Formatting.GREEN));
         return 1;
     }
 
@@ -182,7 +182,7 @@ public class TodoListCommand {
         String name = StringArgumentType.getString(ctx, "name");
         ChecklistExecutor exec = RUNNING.get(name);
         if (exec == null) {
-            src.sendFeedback(Text.literal("没有正在执行的清单: " + name).formatted(Formatting.YELLOW));
+            src.sendFeedback(Text.translatable("todolist.back.not_running", name).formatted(Formatting.YELLOW));
             return 0;
         }
         MinecraftClient client = src.getClient();
@@ -227,11 +227,11 @@ public class TodoListCommand {
             url = ChecklistEditorServer.baseUrl() + "/?file="
                     + URLEncoder.encode(entry.file.getFileName().toString(), StandardCharsets.UTF_8)
                     + "&token=" + token;
-            src.sendFeedback(Text.literal("清单文件路径: " + entry.file.toAbsolutePath())
+            src.sendFeedback(Text.translatable("todolist.edit.file_path", entry.file.toAbsolutePath())
                     .formatted(Formatting.AQUA));
         } else {
             url = ChecklistEditorServer.baseUrl() + "/?token=" + token;
-            src.sendFeedback(Text.literal("未找到清单: " + name + "，已打开编辑器").formatted(Formatting.YELLOW));
+            src.sendFeedback(Text.translatable("todolist.edit.not_found", name).formatted(Formatting.YELLOW));
         }
         openBrowser(src, url);
         return 1;
@@ -242,13 +242,13 @@ public class TodoListCommand {
         try {
             if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
                 Desktop.getDesktop().browse(URI.create(url));
-                src.sendFeedback(Text.literal("已在浏览器打开编辑器。").formatted(Formatting.GREEN));
+                src.sendFeedback(Text.translatable("todolist.edit.opened").formatted(Formatting.GREEN));
             } else {
-                src.sendFeedback(Text.literal("无法自动打开浏览器，请手动访问: " + url)
+                src.sendFeedback(Text.translatable("todolist.edit.open_failed", url)
                         .formatted(Formatting.YELLOW));
             }
         } catch (Exception e) {
-            src.sendFeedback(Text.literal("打开浏览器失败: " + e.getMessage() + "，请手动访问: " + url)
+            src.sendFeedback(Text.translatable("todolist.edit.exception", e.getMessage(), url)
                     .formatted(Formatting.YELLOW));
         }
     }

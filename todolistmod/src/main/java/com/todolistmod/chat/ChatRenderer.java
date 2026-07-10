@@ -28,6 +28,15 @@ public class ChatRenderer {
                 Text.literal(text == null ? "" : text).formatted(Formatting.AQUA));
     }
 
+    /** 在聊天栏输出一行可翻译文本（青色），用于模组自身的提示文案 */
+    public static void printPlain(Text text) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.inGameHud == null || text == null) {
+            return;
+        }
+        client.inGameHud.getChatHud().addMessage(text.copy().formatted(Formatting.AQUA));
+    }
+
     /** 渲染执行器当前步骤：标题行、描述行，以及（若有）选项按钮行 */
     public static void renderTask(ChecklistExecutor exec) {
         MinecraftClient client = MinecraftClient.getInstance();

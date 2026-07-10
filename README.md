@@ -206,6 +206,7 @@ cd todolistmod && gradlew.bat build
 - 若指定了清单名但未找到，仍会打开编辑器并提示「未找到清单」。
 - 编辑器左侧文件列表会列出 `todolist/` 目录下所有 `.json` 文件。
 - 切换模式时若有未保存改动会弹出确认提示。
+- 编辑器界面支持**中/英文切换**：工具栏右侧「中/EN」按钮可切换语言，偏好保存在浏览器 `localStorage`，默认跟随浏览器语言。两种模式的所有 UI 文案、按钮提示、Blockly 工具箱分类名与块标签均会跟随切换。
 
 ### 安全限制
 
@@ -237,6 +238,28 @@ cd todolistmod && gradlew.bat build
 - `/todolist _click <token>`：内部指令，按钮点击时触发，消费令牌并执行对应选择。
 - `ChecklistEditorServer`：本地 HTTP 服务器，承载 HTML 清单编辑器，仅监听 `127.0.0.1`。
 - `ChecklistSuggestionProvider`：为 `do`/`end`/`edit` 子命令的清单名参数提供 Tab 补全候选。
+
+## 多语言支持
+
+模组自身的所有命令反馈与执行提示均使用 `Text.translatable` 可翻译文本，不再硬编码中文。
+语言文件位于 `src/main/resources/assets/todolistmod/lang/` 目录下：
+
+| 文件 | 语言 | 说明 |
+| --- | --- | --- |
+| `en_us.json` | English（美式英语） | 英文翻译，Minecraft 默认语言为 `en_us` 时生效 |
+| `zh_cn.json` | 简体中文 | 中文翻译，语言设置为 `zh_cn` 时生效 |
+
+翻译 key 命名约定为 `todolist.<分类>.<用途>`，例如：
+
+- `todolist.list.*`：`/todolist list` 子命令的反馈
+- `todolist.is.*`：`/todolist is` 子命令的反馈（含状态文案 `running`/`finished`）
+- `todolist.do.*`：`/todolist do` 子命令的反馈
+- `todolist.end.*`：`/todolist end` 子命令的反馈
+- `todolist.back.*`：`/todolist back` 子命令的反馈
+- `todolist.edit.*`：`/todolist edit` 子命令的反馈
+- `todolist.exec.*`：`ChecklistExecutor` 执行引擎运行时的提示（如清单为空、已完成、暂停、返回上一步等）
+
+> **注意**：清单 JSON 文件内的用户内容（`print` 动作的 `text`、`end` 动作的 `message`、清单 `name`、步骤 `desc`、按钮 `trueText`/`falseText`）属于用户数据，**不会被翻译**，按原样输出。
 
 ## 许可证
 

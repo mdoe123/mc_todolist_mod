@@ -6,6 +6,7 @@ import com.todolistmod.model.ChecklistAction;
 import com.todolistmod.model.ChecklistTask;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
+import net.minecraft.text.Text;
 
 import java.util.ArrayDeque;
 import java.util.Collections;
@@ -55,7 +56,7 @@ public class ChecklistExecutor {
     /** 开始执行：定位到首个步骤并渲染 */
     public void start() {
         if (checklist.tasks == null || checklist.tasks.isEmpty()) {
-            ChatRenderer.printPlain("清单为空，无法执行。");
+            ChatRenderer.printPlain(Text.translatable("todolist.exec.empty"));
             finished = true;
             return;
         }
@@ -75,7 +76,7 @@ public class ChecklistExecutor {
         if (currentTask.option == null) {
             finished = true;
             ClickTokens.clearForExecutor(this);
-            ChatRenderer.printPlain("（清单已完成）");
+            ChatRenderer.printPlain(Text.translatable("todolist.exec.completed"));
         }
     }
 
@@ -87,11 +88,11 @@ public class ChecklistExecutor {
      */
     public void choose(int taskId, boolean choice) {
         if (finished) {
-            ChatRenderer.printPlain("该清单已结束。");
+            ChatRenderer.printPlain(Text.translatable("todolist.exec.finished"));
             return;
         }
         if (currentTask == null || currentTask.id != taskId) {
-            ChatRenderer.printPlain("该选项已失效（步骤已变更）。");
+            ChatRenderer.printPlain(Text.translatable("todolist.exec.option_expired"));
             return;
         }
         List<ChecklistAction> actions = choice ? currentTask.trueDo : currentTask.falseDo;
@@ -114,12 +115,12 @@ public class ChecklistExecutor {
                     ClickTokens.clearForExecutor(this);
                     ChecklistTask target = findTask(a.id);
                     if (target == null) {
-                        ChatRenderer.printPlain("跳转目标不存在: id=" + a.id);
+                        ChatRenderer.printPlain(Text.translatable("todolist.exec.jumpto_not_found", a.id));
                         finished = true;
                         return;
                     }
                     if (checklist.maxSteps > 0 && stepCount >= checklist.maxSteps) {
-                        ChatRenderer.printPlain("已达最大步数限制 (" + checklist.maxSteps + ")，清单终止。");
+                        ChatRenderer.printPlain(Text.translatable("todolist.exec.max_steps", checklist.maxSteps));
                         finished = true;
                         return;
                     }
@@ -132,13 +133,13 @@ public class ChecklistExecutor {
                     endExecution(a.message);
                     return;
                 default:
-                    ChatRenderer.printPlain("未知动作类型: " + a.type);
+                    ChatRenderer.printPlain(Text.translatable("todolist.exec.unknown_action", a.type));
                     break;
             }
         }
         // 分支中未出现 jumpto/end：暂停
         ClickTokens.clearForExecutor(this);
-        ChatRenderer.printPlain("（本步骤未指定跳转，清单暂停。可用 /todolist end 结束）");
+        ChatRenderer.printPlain(Text.translatable("todolist.exec.paused"));
     }
 
     /**
@@ -150,16 +151,16 @@ public class ChecklistExecutor {
      */
     public void back() {
         if (finished) {
-            ChatRenderer.printPlain("该清单已结束，无法返回。");
+            ChatRenderer.printPlain(Text.translatable("todolist.exec.back_finished"));
             return;
         }
         if (stepHistory.isEmpty()) {
-            ChatRenderer.printPlain("已是最早步骤，无法返回。");
+            ChatRenderer.printPlain(Text.translatable("todolist.exec.back_empty"));
             return;
         }
         ClickTokens.clearForExecutor(this);
         currentTask = stepHistory.removeLast();
-        ChatRenderer.printPlain("（已返回上一步，副作用不可撤销，请重新选择）");
+        ChatRenderer.printPlain(Text.translatable("todolist.exec.back_done"));
         renderCurrent();
     }
 
@@ -169,7 +170,8 @@ public class ChecklistExecutor {
         if (message != null && !message.isEmpty()) {
             ChatRenderer.printPlain(message);
         }
-        ChatRenderer.printPlain("[" + (checklist.name == null ? "?" : checklist.name) + "] 清单已结束。");
+        ChatRenderer.printPlain(Text.translatable("todolist.exec.ended_name",
+                checklist.name == null ? "?" : checklist.name));
     }
 
     private void runCommand(String command) {
@@ -178,7 +180,7 @@ public class ChecklistExecutor {
         }
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.player == null || client.player.networkHandler == null) {
-            ChatRenderer.printPlain("无法执行指令：未进入游戏。");
+            ChatRenderer.printPlain(Text.translatable("todolist.exec.not_in_game"));
             return;
         }
         String cmd = command.trim();
