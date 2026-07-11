@@ -158,4 +158,10 @@ public class ChecklistStore {
     public static Entry find(String name) {
         return loadAll().get(name);
     }
+
+    /** 使缓存失效，下次 loadAll() 将强制重新扫描目录。编辑器保存/新建/删除后调用。 */
+    public static void invalidateCache() {
+        cachedEntries = null;
+        lastDirModTime = null;
+    }
 }

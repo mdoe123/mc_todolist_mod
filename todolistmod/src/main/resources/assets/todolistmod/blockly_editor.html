@@ -336,18 +336,12 @@
     </block>
   </category>
   <sep gap="20"></sep>
-  <category name="变量" data-i18n-cat="cat.variables" expanded="false">
+  <category name="表达式" data-i18n-cat="cat.expr" expanded="true">
     <block type="game_var"></block>
     <block type="variables_get"></block>
     <block type="variables_set"></block>
-  </category>
-  <sep gap="20"></sep>
-  <category name="运算" data-i18n-cat="cat.math" expanded="false">
     <block type="math_number"></block>
     <block type="math_arithmetic"></block>
-  </category>
-  <sep gap="20"></sep>
-  <category name="逻辑" data-i18n-cat="cat.logic" expanded="false">
     <block type="logic_compare"></block>
     <block type="logic_operation"></block>
     <block type="logic_negate"></block>
@@ -431,6 +425,7 @@ var I18N = {
     'cat.variables': '变量',
     'cat.math': '运算',
     'cat.logic': '逻辑',
+    'cat.expr': '表达式',
     'file.steps': '步',
     'block.interactive_task': '交互步骤',
     'block.terminal_task': '终止步骤',
@@ -489,10 +484,10 @@ var I18N = {
     'theme.auto': '自',
     'tooltip.theme': '切换浅色/深色/跟随系统',
     'tooltip.lang': '切换语言',
-    'tooltip.copy': '复制选中块',
-    'tooltip.paste': '粘贴块',
-    'tooltip.undo': '撤销',
-    'tooltip.redo': '重做',
+    'tooltip.copy': '复制 (Ctrl+C)',
+    'tooltip.paste': '粘贴 (Ctrl+V)',
+    'tooltip.undo': '撤销 (Ctrl+Z)',
+    'tooltip.redo': '重做 (Ctrl+Y)',
     'msg.copied': '已复制到剪贴板',
     'msg.no_block_selected': '请先选中一个块'
   },
@@ -520,6 +515,7 @@ var I18N = {
     'cat.variables': 'Variables',
     'cat.math': 'Math',
     'cat.logic': 'Logic',
+    'cat.expr': 'Expression',
     'file.steps': 'steps',
     'block.interactive_task': 'Interactive Step',
     'block.terminal_task': 'Terminal Step',
@@ -578,10 +574,10 @@ var I18N = {
     'theme.auto': 'Auto',
     'tooltip.theme': 'Toggle light/dark/follow system',
     'tooltip.lang': 'Switch language',
-    'tooltip.copy': 'Copy selected block',
-    'tooltip.paste': 'Paste block',
-    'tooltip.undo': 'Undo',
-    'tooltip.redo': 'Redo',
+    'tooltip.copy': 'Copy (Ctrl+C)',
+    'tooltip.paste': 'Paste (Ctrl+V)',
+    'tooltip.undo': 'Undo (Ctrl+Z)',
+    'tooltip.redo': 'Redo (Ctrl+Y)',
     'msg.copied': 'Copied to clipboard',
     'msg.no_block_selected': 'Please select a block first'
   }
@@ -625,6 +621,13 @@ function applyLang() {
     });
     workspace.updateToolbox(document.getElementById('toolbox'));
     Blockly.svgResize(workspace);
+  }
+  // 同步 Blockly 消息
+  applyBlocklyMsg(currentLang);
+  // 刷新已有块渲染以更新字段标签
+  if (workspace) {
+    workspace.refreshToolboxSelection();
+    workspace.getAllBlocks().forEach(function(b) { b.render(); });
   }
 }
 langBtn.addEventListener('click', function () {
@@ -842,10 +845,60 @@ if (Blockly.Theme && Blockly.Theme.defineTheme) {
   });
 }
 
+/* 根据语言覆盖 Blockly.Msg，实现右键菜单和内置块字段的中文化 */
+function applyBlocklyMsg(lang) {
+  if (lang === 'zh') {
+    // 右键菜单项
+    Blockly.Msg.DUPLICATE_BLOCK = '复制块';
+    Blockly.Msg.DELETE_BLOCK = '删除块';
+    Blockly.Msg.DELETE_X_BLOCKS = '删除 %1 个块';
+    Blockly.Msg.ADD_COMMENT = '添加注释';
+    Blockly.Msg.REMOVE_COMMENT = '移除注释';
+    Blockly.Msg.EXTERNAL_INPUTS = '外部输入';
+    Blockly.Msg.INLINE_INPUTS = '内部输入';
+    Blockly.Msg.COLLAPSE_BLOCK = '折叠块';
+    Blockly.Msg.EXPAND_BLOCK = '展开块';
+    Blockly.Msg.DISABLE_BLOCK = '禁用块';
+    Blockly.Msg.ENABLE_BLOCK = '启用块';
+    Blockly.Msg.HELP = '帮助';
+    // 逻辑运算下拉（AND/OR → 且/或）
+    Blockly.Msg.LOGIC_OPERATION_AND = '且';
+    Blockly.Msg.LOGIC_OPERATION_OR = '或';
+    // 布尔下拉（TRUE/FALSE → 真/假）
+    Blockly.Msg.LOGIC_BOOLEAN_TRUE = '真';
+    Blockly.Msg.LOGIC_BOOLEAN_FALSE = '假';
+    // 变量块标签
+    Blockly.Msg.VARIABLES_GET_TITLE = '变量';
+    Blockly.Msg.VARIABLES_SET_TITLE = '赋值';
+    Blockly.Msg.VARIABLES_DEFAULT_NAME = 'item';
+  } else {
+    // 英文恢复默认值
+    Blockly.Msg.DUPLICATE_BLOCK = 'Duplicate';
+    Blockly.Msg.DELETE_BLOCK = 'Delete Block';
+    Blockly.Msg.DELETE_X_BLOCKS = 'Delete %1 Blocks';
+    Blockly.Msg.ADD_COMMENT = 'Add Comment';
+    Blockly.Msg.REMOVE_COMMENT = 'Remove Comment';
+    Blockly.Msg.EXTERNAL_INPUTS = 'External Inputs';
+    Blockly.Msg.INLINE_INPUTS = 'Inline Inputs';
+    Blockly.Msg.COLLAPSE_BLOCK = 'Collapse Block';
+    Blockly.Msg.EXPAND_BLOCK = 'Expand Block';
+    Blockly.Msg.DISABLE_BLOCK = 'Disable Block';
+    Blockly.Msg.ENABLE_BLOCK = 'Enable Block';
+    Blockly.Msg.HELP = 'Help';
+    Blockly.Msg.LOGIC_OPERATION_AND = 'and';
+    Blockly.Msg.LOGIC_OPERATION_OR = 'or';
+    Blockly.Msg.LOGIC_BOOLEAN_TRUE = 'true';
+    Blockly.Msg.LOGIC_BOOLEAN_FALSE = 'false';
+    Blockly.Msg.VARIABLES_GET_TITLE = 'variable';
+    Blockly.Msg.VARIABLES_SET_TITLE = 'set';
+  }
+}
+
 /* ============================================================
  * 三、初始化工作区
  * ============================================================ */
 function initWorkspace() {
+  applyBlocklyMsg(currentLang);
   workspace = Blockly.inject('blockly-container', {
     toolbox: document.getElementById('toolbox'),
     trashcan: true,

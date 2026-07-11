@@ -362,6 +362,7 @@ public final class ChecklistEditorServer {
                     Files.createDirectories(parent);
                 }
                 Files.writeString(target, body, StandardCharsets.UTF_8);
+                ChecklistStore.invalidateCache();
                 safeSend(exchange, 200, "{\"ok\":true}");
             } catch (IOException e) {
                 ChecklistStore.LOGGER.error("[ChatTodolist] 保存清单失败: {}", target, e);
@@ -407,6 +408,7 @@ public final class ChecklistEditorServer {
                     Files.createDirectories(parent);
                 }
                 Files.writeString(target, DEFAULT_TEMPLATE, StandardCharsets.UTF_8);
+                ChecklistStore.invalidateCache();
                 safeSend(exchange, 200, "{\"ok\":true}");
             } catch (IOException e) {
                 ChecklistStore.LOGGER.error("[ChatTodolist] 新建清单失败: {}", target, e);
@@ -427,6 +429,7 @@ public final class ChecklistEditorServer {
             }
             try {
                 Files.delete(target);
+                ChecklistStore.invalidateCache();
                 safeSend(exchange, 200, "{\"ok\":true}");
             } catch (IOException e) {
                 ChecklistStore.LOGGER.error("[ChatTodolist] 删除清单失败: {}", target, e);

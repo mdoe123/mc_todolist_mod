@@ -30,8 +30,8 @@ cd todolistmod && gradlew.bat build
 
 构建产物在 `todolistmod/build/libs/`：
 
-- `todolistmod-1.4.0.jar` —— 这就是要放进 `mods` 文件夹的模组文件
-- `todolistmod-1.4.0-sources.jar` —— 源码包（可选）
+- `todolistmod-1.4.1.jar` —— 这就是要放进 `mods` 文件夹的模组文件
+- `todolistmod-1.4.1-sources.jar` —— 源码包（可选）
 
 > 首次构建会自动下载 Minecraft、Yarn 映射和依赖，耗时较长，属正常现象。
 > 若 `services.gradle.org` 下载 Gradle 本体很慢，可把 `gradle/wrapper/gradle-wrapper.properties`
@@ -41,7 +41,7 @@ cd todolistmod && gradlew.bat build
 ## 安装
 
 1. 确保已安装 Fabric Loader 和 Fabric API（选择与你当前 Minecraft 1.21.x 版本对应的 Fabric API）。
-2. 把 `todolistmod-1.4.0.jar` 放进 `.minecraft/mods/`。
+2. 把 `todolistmod-1.4.1.jar` 放进 `.minecraft/mods/`。
 3. 启动游戏。首次进入世界时，模组会在**游戏根目录**生成 `todolist` 文件夹；若配置项 `generateExample` 为 `true`（默认），还会写入一个 `example.json` 示例清单。
 
 ## 配置文件
