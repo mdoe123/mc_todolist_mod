@@ -304,6 +304,17 @@ cd todolistmod && gradlew.bat build
 
 ## 更新历史
 
+### v1.4.7 — 块编辑器工作区显示修复 + 令牌失效自动恢复 + 变量块修复
+
+- **CSP style-src 修复** `ChecklistEditorServer`：v1.4.4 安全加固将 `style-src` 从 `'unsafe-inline'` 改为 `'nonce-<value>'`，导致 Blockly 通过 `Blockly.Css.inject()` 动态注入的 `<style>` 元素被 CSP 拦截，块编辑器工作区 CSS 失效不显示。`style-src` 恢复 `'unsafe-inline'`，`script-src` 仍保持 nonce 严格限制。
+- **令牌失效自动恢复** `editor.html` + `blockly_editor.html`：玩家编辑中途若执行了 `/todolist edit end` 或游戏重启，编辑器令牌会失效导致保存返回 403。新增 `apiFetch()` 包装器拦截所有 API 请求，检测到 403 时弹出令牌刷新对话框，玩家粘贴游戏内新的 `/todolist edit` 链接即可刷新令牌并自动重试失败的操作，编辑内容不会丢失。
+- **变量名乱码修复** `blockly_editor.html`：`blockToExpr()` 中 `variables_get` 块用 `getFieldValue('VAR')` 获取的是 Blockly 变量 ID（如 `DUr7)rFnvq(G?rE))*-v`）而非变量名，导致表达式中出现乱码。改用 `getField('VAR').getText()` 获取变量显示名称。
+- **variables_set 序列化修复** `blockly_editor.html`：`actionBlockToJson()` 没有 `variables_set` 分支，保存时走到 fallback 只输出 `{ type: "variables_set" }`，变量名和值全部丢失。新增 `variables_set` 分支，用 `getText()` 获取变量名、`getInputTargetBlock('VALUE')` 获取值，序列化为 `{ type: "set", var, value }` 与后端一致。
+- **variables_set 反序列化修复** `blockly_editor.html`：`createActionBlock()` 的 `set` 动作原先用自定义 `set_var` 块加载，现改用 Blockly 自带 `variables_set` 块。`workspace.getVariable(name)` 在当前 Blockly 版本不存在，改用 `workspace.getVariableMap().getVariable(name, '')` 查找变量、`getVariableMap().createVariable(name, '')` 创建变量，再用 `variable.getId()` 设置 FieldVariable 字段。
+- **移除自定义 set_var 块** `blockly_editor.html`：set_var 与 variables_set 功能重叠，统一用 Blockly 自带 variables_set/variables_get（支持下拉选择/创建/重命名变量）。移除 set_var 块定义和 toolbox 条目，旧清单仍兼容加载。
+- **Blockly media 本地化** `blockly_editor.html` + `ChecklistEditorServer`：Blockly 默认从 `https://static.blockly.com/media/` 加载 sprites.svg 和音效，被 CSP `default-src 'self'` 拦截。从 Blockly 官方仓库下载全部 media 文件（sprites.svg、1x1.gif、dropdown-arrow.svg 等 16 个文件）到本地 `assets/todolistmod/blockly/`，配置 `media: '/assets/blockly/'` 指向本地路径。同时禁用音效（`sounds: false`），添加 svg/gif/png/mp3/cur 的 Content-Type 支持。CSP 保持严格 `default-src 'self'`，无需放宽。
+- **Blockly 版权合规** `blockly/LICENSE` + `blockly_editor.html` + `README.md`：Blockly 采用 Apache License 2.0（Copyright 2014-2024 Google LLC）。在本地 `assets/todolistmod/blockly/` 目录放置完整 Apache 2.0 LICENSE 文件（含版权头），`blockly_editor.html` 引入脚本处添加版权注释，README「许可证」章节新增「第三方组件」表格声明 Blockly 的协议与版权方，满足 Apache 2.0 再分发须保留版权声明与 LICENSE 文件的要求。
+
 ### v1.4.6 — 遗留安全与防御性修复（P2-遗留 + P1-遗留）
 
 - **P2-遗留-2** `ChecklistEditorServer`：缺少 `Referrer-Policy` 响应头。新增 `Referrer-Policy: no-referrer`，纵深防御残余信息通过 Referer 头泄露。
@@ -351,4 +362,14 @@ cd todolistmod && gradlew.bat build
 
 ## 许可证
 
-LGPL-3.0。详见 [LICENSE](LICENSE)。
+本项目（Chat Todolist 模组源码）采用 **LGPL-3.0** 协议。详见 [LICENSE](LICENSE)。
+
+### 第三方组件
+
+| 组件 | 版本 | 协议 | 版权方 | 说明 |
+| --- | --- | --- | --- | --- |
+| Blockly | `blockly.min.js` + media 文件 | Apache License 2.0 | Copyright 2014-2024 Google LLC | 可视化积木编辑器，已本地化打包进 mod 资源（`assets/todolistmod/blockly/`），离线可用 |
+
+Blockly 的完整协议文本见 [`todolistmod/src/main/resources/assets/todolistmod/blockly/LICENSE`](todolistmod/src/main/resources/assets/todolistmod/blockly/LICENSE)。
+
+> **Apache 2.0 协议要求**：再分发时须保留版权声明与 LICENSE 文件；对原文件的修改须在修改过的文件中作显著声明。本项目对 `blockly.min.js` 未作任何修改，原样打包；media 文件（`sprites.svg`、`1x1.gif` 等 16 个）同样原样下载自 Blockly 官方仓库并保留。

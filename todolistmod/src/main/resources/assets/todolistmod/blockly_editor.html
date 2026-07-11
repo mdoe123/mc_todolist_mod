@@ -291,9 +291,64 @@
     text-align: center;
   }
   #workspace-hint.hidden { display: none; }
+
+  /* ---------- 令牌刷新对话框 ---------- */
+  #token-dialog-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+  }
+  #token-dialog-overlay.show { display: flex; }
+  #token-dialog {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    max-width: 460px;
+    width: 90%;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  }
+  #token-dialog h3 {
+    margin: 0 0 8px 0;
+    font-size: 15px;
+    color: var(--danger);
+  }
+  #token-dialog p {
+    margin: 0 0 12px 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  #token-dialog input {
+    width: 100%;
+    margin-bottom: 12px;
+    padding: 6px 8px;
+  }
+  #token-dialog .dialog-btns {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
 </style>
 </head>
 <body>
+  <!-- 令牌刷新对话框 -->
+  <div id="token-dialog-overlay">
+    <div id="token-dialog">
+      <h3 data-i18n="token.expired_title">令牌已失效</h3>
+      <p data-i18n="token.expired_desc">编辑器令牌已过期。请在游戏内重新运行 /todolist edit，将新链接粘贴到下方以刷新令牌，编辑内容不会丢失。</p>
+      <input type="text" id="token-input" maxlength="200" placeholder="http://127.0.0.1:..." data-i18n-placeholder="token.input_placeholder">
+      <div class="dialog-btns">
+        <button id="token-cancel-btn" data-i18n="btn.cancel">取消</button>
+        <button id="token-refresh-btn" data-i18n="token.refresh">刷新令牌</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toolbar">
     <span class="title" data-i18n="app.title.block">清单编辑器 - 块模式</span>
     <div class="sep"></div>
@@ -368,8 +423,8 @@
     <block type="print"></block>
     <block type="run"></block>
     <block type="end"></block>
-    <block type="set_var">
-      <value name="value">
+    <block type="variables_set">
+      <value name="VALUE">
         <shadow type="expr_text"><field name="TEXT">0</field></shadow>
       </value>
     </block>
@@ -383,7 +438,6 @@
   <category name="表达式" data-i18n-cat="cat.expr" expanded="true">
     <block type="game_var"></block>
     <block type="variables_get"></block>
-    <block type="variables_set"></block>
     <block type="math_number"></block>
     <block type="math_arithmetic"></block>
     <block type="logic_compare"></block>
@@ -393,7 +447,9 @@
   </category>
 </xml>
 
-<!-- Blockly 库（由本地 HTTP 服务器提供） -->
+<!-- Blockly 库（由本地 HTTP 服务器提供）
+     Copyright 2014-2024 Google LLC, Apache License 2.0
+     https://developers.google.com/blockly/ -->
 <script src="/assets/blockly/blockly.min.js"></script>
 <script>
 "use strict";
@@ -450,6 +506,79 @@ var mcVersionMaxInput = document.getElementById('f-mcversionmax');
 var themeBtn = document.getElementById('themeBtn');
 var workspaceHint = document.getElementById('workspace-hint');
 var langBtn = document.getElementById('langBtn');
+
+/* ============================================================
+ * 令牌刷新机制：检测 403 时弹窗，玩家粘贴新 /todolist edit 链接刷新令牌
+ * ============================================================ */
+var tokenDialogOverlay = document.getElementById('token-dialog-overlay');
+var tokenInput = document.getElementById('token-input');
+var tokenRefreshResolver = null;
+
+/** 弹出令牌刷新对话框，返回 Promise<boolean>（true=已刷新，false=已取消） */
+function showTokenDialog() {
+  return new Promise(function (resolve) {
+    tokenRefreshResolver = resolve;
+    tokenInput.value = '';
+    tokenDialogOverlay.classList.add('show');
+    setTimeout(function () { tokenInput.focus(); }, 50);
+  });
+}
+
+function hideTokenDialog(result) {
+  tokenDialogOverlay.classList.remove('show');
+  if (tokenRefreshResolver) {
+    tokenRefreshResolver(result);
+    tokenRefreshResolver = null;
+  }
+}
+
+document.getElementById('token-refresh-btn').addEventListener('click', function () {
+  var url = tokenInput.value.trim();
+  var newToken = null;
+  try {
+    var u = new URL(url);
+    newToken = u.searchParams.get('token');
+  } catch (e) {
+    // 非合法 URL，尝试从文本中提取 token 参数
+    var match = url.match(/[?&]token=([^&]+)/);
+    if (match) newToken = decodeURIComponent(match[1]);
+  }
+  if (!newToken) {
+    tokenInput.focus();
+    return;
+  }
+  TOKEN = newToken;
+  sessionStorage.setItem('todolist_token', TOKEN);
+  hideTokenDialog(true);
+});
+
+document.getElementById('token-cancel-btn').addEventListener('click', function () {
+  hideTokenDialog(false);
+});
+
+tokenInput.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') {
+    document.getElementById('token-refresh-btn').click();
+  } else if (e.key === 'Escape') {
+    hideTokenDialog(false);
+  }
+});
+
+/**
+ * API fetch 包装器：检测到 403（令牌失效）时自动弹出刷新对话框，
+ * 玩家粘贴新链接后重试一次。其他情况与 fetch 行为一致。
+ */
+async function apiFetch(url, options) {
+  var res = await fetch(url, options);
+  if (res.status === 403) {
+    var refreshed = await showTokenDialog();
+    if (!refreshed) return res;
+    // 令牌已更新，替换 URL 中的 token 参数后重试
+    url = url.replace(/([?&])token=[^&]*/, '$1token=' + encodeURIComponent(TOKEN));
+    res = await fetch(url, options);
+  }
+  return res;
+}
 
 /* ============================================================
  * 多语言支持（i18n）
@@ -544,7 +673,12 @@ var I18N = {
     'tooltip.undo': '撤销 (Ctrl+Z)',
     'tooltip.redo': '重做 (Ctrl+Y)',
     'msg.copied': '已复制到剪贴板',
-    'msg.no_block_selected': '请先选中一个块'
+    'msg.no_block_selected': '请先选中一个块',
+    'token.expired_title': '令牌已失效',
+    'token.expired_desc': '编辑器令牌已过期。请在游戏内重新运行 /todolist edit，将新链接粘贴到下方以刷新令牌，编辑内容不会丢失。',
+    'token.input_placeholder': '粘贴新的 /todolist edit 链接',
+    'token.refresh': '刷新令牌',
+    'btn.cancel': '取消'
   },
   'en': {
     'app.title.block': 'Checklist Editor - Block Mode · Chat Todolist',
@@ -635,7 +769,12 @@ var I18N = {
     'tooltip.undo': 'Undo (Ctrl+Z)',
     'tooltip.redo': 'Redo (Ctrl+Y)',
     'msg.copied': 'Copied to clipboard',
-    'msg.no_block_selected': 'Please select a block first'
+    'msg.no_block_selected': 'Please select a block first',
+    'token.expired_title': 'Token Expired',
+    'token.expired_desc': 'Editor token has expired. Please run /todolist edit in-game again and paste the new URL below to refresh. Your edits will not be lost.',
+    'token.input_placeholder': 'Paste new /todolist edit URL',
+    'token.refresh': 'Refresh Token',
+    'btn.cancel': 'Cancel'
   }
 };
 var currentLang = localStorage.getItem('lang') || (navigator.language.startsWith('zh') ? 'zh' : 'en');
@@ -670,7 +809,6 @@ function applyLang() {
       else if (blk.type === 'print') blk.setTooltip(t('tooltip.print'));
       else if (blk.type === 'run') blk.setTooltip(t('tooltip.run'));
       else if (blk.type === 'end') blk.setTooltip(t('tooltip.end'));
-      else if (blk.type === 'set_var') blk.setTooltip(t('tooltip.set_var'));
       else if (blk.type === 'if') blk.setTooltip(t('tooltip.if'));
       else if (blk.type === 'game_var') blk.setTooltip(t('tooltip.game_var'));
       else if (blk.type === 'expr_text') blk.setTooltip(t('tooltip.expr_text'));
@@ -790,22 +928,6 @@ Blockly.Blocks['end'] = {
     this.setNextStatement(true);
     this.setColour("#EF4444");
     this.setTooltip(t('tooltip.end'));
-  }
-};
-
-// 设置自定义变量（青色）
-Blockly.Blocks['set_var'] = {
-  init: function () {
-    this.appendDummyInput()
-        .appendField(t('block.set_var'))
-        .appendField(new Blockly.FieldTextInput("counter"), "var");
-    this.appendValueInput("value")
-        .setCheck(null)
-        .appendField(t('block.set_value'));
-    this.setPreviousStatement(true);
-    this.setNextStatement(true);
-    this.setColour("#06B6D4");
-    this.setTooltip(t('tooltip.set_var'));
   }
 };
 
@@ -958,6 +1080,8 @@ function initWorkspace() {
   workspace = Blockly.inject('blockly-container', {
     toolbox: document.getElementById('toolbox'),
     trashcan: true,
+    sounds: false,
+    media: '/assets/blockly/',
     move: { scrollbars: true, drag: true, wheel: true },
     zoom: { controls: true, wheel: true, pinch: true }
   });
@@ -1066,8 +1190,11 @@ function actionBlockToJson(block) {
     var o = { type: 'end' };
     if (msg) { o.message = msg; }
     return o;
-  } else if (block.type === 'set_var') {
-    return { type: 'set', var: block.getFieldValue('var') || "", value: blockToExpr(block.getInputTargetBlock('value')) };
+  } else if (block.type === 'variables_set') {
+    // Blockly 自带变量赋值块：用 getText() 获取变量名（getFieldValue 返回的是 ID）
+    var vsVarField = block.getField('VAR');
+    var vsVarName = vsVarField ? vsVarField.getText() : '';
+    return { type: 'set', var: vsVarName, value: blockToExpr(block.getInputTargetBlock('VALUE')) };
   } else if (block.type === 'if') {
     return { type: 'if', cond: blockToExpr(block.getInputTargetBlock('cond')), id: parseInt(block.getFieldValue('id'), 10) || 0 };
   }
@@ -1110,7 +1237,9 @@ function blockToExpr(block) {
     case 'logic_boolean':
       return block.getFieldValue('BOOL') === 'TRUE' ? 'true' : 'false';
     case 'variables_get':
-      return '${' + (block.getFieldValue('VAR') || '') + '}';
+      var varField = block.getField('VAR');
+      var varName = varField ? varField.getText() : '';
+      return '${' + varName + '}';
     case 'text':
       return '"' + (block.getFieldValue('TEXT') || '') + '"';
     default:
@@ -1179,7 +1308,9 @@ function actionsToStatement(taskBlock, inputName, actions) {
 // 根据动作 JSON 创建对应 action 块并填字段
 function createActionBlock(action) {
   var type = action.type || 'jumpto';
-  var b = workspace.newBlock(type);
+  // set 动作对应 variables_set 块（JSON 中 type 为 "set"，Blockly 块为 "variables_set"）
+  var blockType = (type === 'set') ? 'variables_set' : type;
+  var b = workspace.newBlock(blockType);
   if (type === 'jumpto') {
     b.setFieldValue(String(action.id != null ? action.id : 1), 'id');
   } else if (type === 'print') {
@@ -1189,13 +1320,21 @@ function createActionBlock(action) {
   } else if (type === 'end') {
     b.setFieldValue(action.message || "", 'message');
   } else if (type === 'set') {
-    b.setFieldValue(action.var || "", 'var');
-    // 为 value 输入创建 expr_text 子块承载已有表达式字符串
+    // variables_set 块需要先在 workspace 创建变量，再用变量 ID 设置 FieldVariable
+    // 注意：workspace.getVariable(name) 不存在，需用 getVariableMap().getVariable(name, type)
+    var varName = action.var || 'item';
+    var varMap = workspace.getVariableMap();
+    var variable = varMap.getVariable(varName, '');
+    if (!variable) {
+      variable = varMap.createVariable(varName, '');
+    }
+    b.setFieldValue(variable.getId(), 'VAR');
+    // 为 VALUE 输入创建 expr_text 子块承载已有表达式字符串
     var valBlock = workspace.newBlock('expr_text');
     valBlock.setFieldValue(action.value || "", 'TEXT');
     valBlock.initSvg();
     valBlock.render();
-    b.getInput('value').connection.connect(valBlock.outputConnection);
+    b.getInput('VALUE').connection.connect(valBlock.outputConnection);
   } else if (type === 'if') {
     // 为 cond 输入创建 expr_text 子块承载已有条件字符串
     var condBlock = workspace.newBlock('expr_text');
@@ -1258,7 +1397,7 @@ function validateWorkspace() {
  * ============================================================ */
 async function refreshList() {
   try {
-    var res = await fetch('/api/list?token=' + encodeURIComponent(TOKEN));
+    var res = await apiFetch('/api/list?token=' + encodeURIComponent(TOKEN));
     if (!res.ok) throw new Error('HTTP ' + res.status);
     files = await res.json();
   } catch (e) {
@@ -1297,7 +1436,7 @@ async function loadFile(filename) {
   // 有未保存改动时提示
   if (dirty && !confirm(t('msg.discard_load_prefix') + filename + t('msg.discard_load_suffix'))) return;
   try {
-    var res = await fetch('/api/load?file=' + encodeURIComponent(filename) + '&token=' + encodeURIComponent(TOKEN));
+    var res = await apiFetch('/api/load?file=' + encodeURIComponent(filename) + '&token=' + encodeURIComponent(TOKEN));
     if (!res.ok) {
       var respText = await res.text();
       throw new Error(respText || ('HTTP ' + res.status));
@@ -1331,7 +1470,7 @@ async function save() {
   var json = JSON.stringify(jsonObj, null, 2);
   // 3. POST 保存
   try {
-    var res = await fetch('/api/save?file=' + encodeURIComponent(currentFile) + '&token=' + encodeURIComponent(TOKEN), {
+    var res = await apiFetch('/api/save?file=' + encodeURIComponent(currentFile) + '&token=' + encodeURIComponent(TOKEN), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: json
@@ -1354,7 +1493,7 @@ async function newFile() {
   if (!/\.json$/i.test(name)) name += '.json';
   if (/[\\\/]/.test(name)) { showStatus(t('msg.invalid_filename'), true); return; }
   try {
-    var res = await fetch('/api/new?file=' + encodeURIComponent(name) + '&token=' + encodeURIComponent(TOKEN), { method: 'POST' });
+    var res = await apiFetch('/api/new?file=' + encodeURIComponent(name) + '&token=' + encodeURIComponent(TOKEN), { method: 'POST' });
     if (res.status === 409) { showStatus(t('msg.file_exists') + name, true); return; }
     if (!res.ok) {
       var respText = await res.text();
@@ -1372,7 +1511,7 @@ async function deleteFile() {
   if (!currentFile) { showStatus(t('msg.no_file'), true); return; }
   if (!confirm(t('msg.delete_confirm_prefix') + currentFile + t('msg.delete_confirm_suffix'))) return;
   try {
-    var res = await fetch('/api/delete?file=' + encodeURIComponent(currentFile) + '&token=' + encodeURIComponent(TOKEN), { method: 'DELETE' });
+    var res = await apiFetch('/api/delete?file=' + encodeURIComponent(currentFile) + '&token=' + encodeURIComponent(TOKEN), { method: 'DELETE' });
     if (!res.ok) {
       var respText = await res.text();
       throw new Error(respText || ('HTTP ' + res.status));

@@ -160,8 +160,12 @@ public final class ChecklistEditorServer {
         headers.set("X-Frame-Options", "DENY");
         headers.set("Referrer-Policy", "no-referrer");
         if (nonce != null) {
+            // style-src 保留 'unsafe-inline'：Blockly.Css.inject() 会动态注入 <style> 元素，
+            // 这些元素无法携带 nonce，若 CSP 禁止 inline style 则工作区 CSS 失效导致不显示。
+            // script-src 仍用 nonce 严格限制内联脚本。
+            // Blockly media 文件已本地化到 /assets/blockly/，无需放宽 img-src/media-src。
             headers.set("Content-Security-Policy",
-                    "default-src 'self'; script-src 'self' 'nonce-" + nonce + "'; style-src 'self' 'nonce-" + nonce + "'");
+                    "default-src 'self'; script-src 'self' 'nonce-" + nonce + "'; style-src 'self' 'unsafe-inline'");
         } else {
             // 非 HTML 响应（JSON、Blockly 静态资源）保持严格 CSP
             headers.set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'");
@@ -320,6 +324,16 @@ public final class ChecklistEditorServer {
                 return "application/javascript; charset=utf-8";
             } else if (filename.endsWith(".css")) {
                 return "text/css; charset=utf-8";
+            } else if (filename.endsWith(".svg")) {
+                return "image/svg+xml";
+            } else if (filename.endsWith(".gif")) {
+                return "image/gif";
+            } else if (filename.endsWith(".png")) {
+                return "image/png";
+            } else if (filename.endsWith(".mp3")) {
+                return "audio/mpeg";
+            } else if (filename.endsWith(".cur")) {
+                return "image/x-icon";
             }
             return "application/octet-stream";
         }

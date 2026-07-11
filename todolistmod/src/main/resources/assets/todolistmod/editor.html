@@ -274,9 +274,64 @@
     color: var(--muted);
     font-size: 12px;
   }
+
+  /* ---------- 令牌刷新对话框 ---------- */
+  #token-dialog-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+  }
+  #token-dialog-overlay.show { display: flex; }
+  #token-dialog {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    max-width: 460px;
+    width: 90%;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  }
+  #token-dialog h3 {
+    margin: 0 0 8px 0;
+    font-size: 15px;
+    color: var(--danger);
+  }
+  #token-dialog p {
+    margin: 0 0 12px 0;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  #token-dialog input {
+    width: 100%;
+    margin-bottom: 12px;
+    padding: 6px 8px;
+  }
+  #token-dialog .dialog-btns {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
 </style>
 </head>
 <body>
+  <!-- 令牌刷新对话框 -->
+  <div id="token-dialog-overlay">
+    <div id="token-dialog">
+      <h3 data-i18n="token.expired_title">令牌已失效</h3>
+      <p data-i18n="token.expired_desc">编辑器令牌已过期。请在游戏内重新运行 /todolist edit，将新链接粘贴到下方以刷新令牌，编辑内容不会丢失。</p>
+      <input type="text" id="token-input" maxlength="200" placeholder="http://127.0.0.1:..." data-i18n-placeholder="token.input_placeholder">
+      <div class="dialog-btns">
+        <button id="token-cancel-btn" data-i18n="btn.cancel">取消</button>
+        <button id="token-refresh-btn" data-i18n="token.refresh">刷新令牌</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toolbar">
     <div class="group">
       <select id="fileSelect" title="选择文件" data-i18n-title="tooltip.select_file"></select>
@@ -413,6 +468,77 @@ var statusEl   = document.getElementById('status');
 var fileHintEl = document.getElementById('currentFileHint');
 var themeBtn   = document.getElementById('themeBtn');
 var langBtn    = document.getElementById('langBtn');
+
+/* ============================================================
+ * 令牌刷新机制：检测 403 时弹窗，玩家粘贴新 /todolist edit 链接刷新令牌
+ * ============================================================ */
+var tokenDialogOverlay = document.getElementById('token-dialog-overlay');
+var tokenInput = document.getElementById('token-input');
+var tokenRefreshResolver = null;
+
+/** 弹出令牌刷新对话框，返回 Promise<boolean>（true=已刷新，false=已取消） */
+function showTokenDialog() {
+  return new Promise(function (resolve) {
+    tokenRefreshResolver = resolve;
+    tokenInput.value = '';
+    tokenDialogOverlay.classList.add('show');
+    setTimeout(function () { tokenInput.focus(); }, 50);
+  });
+}
+
+function hideTokenDialog(result) {
+  tokenDialogOverlay.classList.remove('show');
+  if (tokenRefreshResolver) {
+    tokenRefreshResolver(result);
+    tokenRefreshResolver = null;
+  }
+}
+
+document.getElementById('token-refresh-btn').addEventListener('click', function () {
+  var url = tokenInput.value.trim();
+  var newToken = null;
+  try {
+    var u = new URL(url);
+    newToken = u.searchParams.get('token');
+  } catch (e) {
+    var match = url.match(/[?&]token=([^&]+)/);
+    if (match) newToken = decodeURIComponent(match[1]);
+  }
+  if (!newToken) {
+    tokenInput.focus();
+    return;
+  }
+  TOKEN = newToken;
+  sessionStorage.setItem('todolist_token', TOKEN);
+  hideTokenDialog(true);
+});
+
+document.getElementById('token-cancel-btn').addEventListener('click', function () {
+  hideTokenDialog(false);
+});
+
+tokenInput.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') {
+    document.getElementById('token-refresh-btn').click();
+  } else if (e.key === 'Escape') {
+    hideTokenDialog(false);
+  }
+});
+
+/**
+ * API fetch 包装器：检测到 403（令牌失效）时自动弹出刷新对话框，
+ * 玩家粘贴新链接后重试一次。其他情况与 fetch 行为一致。
+ */
+async function apiFetch(url, options) {
+  var res = await fetch(url, options);
+  if (res.status === 403) {
+    var refreshed = await showTokenDialog();
+    if (!refreshed) return res;
+    url = url.replace(/([?&])token=[^&]*/, '$1token=' + encodeURIComponent(TOKEN));
+    res = await fetch(url, options);
+  }
+  return res;
+}
 
 /* ============================================================
  * 变量自动补全 — 数据源与状态
@@ -557,7 +683,12 @@ var I18N = {
     'tooltip.mode_form': '表单模式（当前）',
     'tooltip.mode_block': '切换到块模式（积木编辑）',
     'tooltip.theme': '切换浅色/深色/跟随系统',
-    'tooltip.lang': '切换语言'
+    'tooltip.lang': '切换语言',
+    'token.expired_title': '令牌已失效',
+    'token.expired_desc': '编辑器令牌已过期。请在游戏内重新运行 /todolist edit，将新链接粘贴到下方以刷新令牌，编辑内容不会丢失。',
+    'token.input_placeholder': '粘贴新的 /todolist edit 链接',
+    'token.refresh': '刷新令牌',
+    'btn.cancel': '取消'
   },
   'en': {
     'app.title': 'Checklist Editor · Chat Todolist',
@@ -630,7 +761,12 @@ var I18N = {
     'tooltip.mode_form': 'Form mode (current)',
     'tooltip.mode_block': 'Switch to block mode (blockly editing)',
     'tooltip.theme': 'Toggle light/dark/follow system',
-    'tooltip.lang': 'Switch language'
+    'tooltip.lang': 'Switch language',
+    'token.expired_title': 'Token Expired',
+    'token.expired_desc': 'Editor token has expired. Please run /todolist edit in-game again and paste the new URL below to refresh. Your edits will not be lost.',
+    'token.input_placeholder': 'Paste new /todolist edit URL',
+    'token.refresh': 'Refresh Token',
+    'btn.cancel': 'Cancel'
   }
 };
 var currentLang = localStorage.getItem('lang') || (navigator.language.startsWith('zh') ? 'zh' : 'en');
@@ -1191,7 +1327,7 @@ document.getElementById('modeFormBtn').addEventListener('click', function () {
 
 async function refreshList() {
   try {
-    var res = await fetch('/api/list?token=' + encodeURIComponent(TOKEN));
+    var res = await apiFetch('/api/list?token=' + encodeURIComponent(TOKEN));
     if (!res.ok) throw new Error('HTTP ' + res.status);
     files = await res.json();
   } catch (e) {
@@ -1211,7 +1347,7 @@ async function refreshList() {
 async function loadFile(filename) {
   if (!filename) return;
   try {
-    var res = await fetch('/api/load?file=' + encodeURIComponent(filename) + '&token=' + encodeURIComponent(TOKEN));
+    var res = await apiFetch('/api/load?file=' + encodeURIComponent(filename) + '&token=' + encodeURIComponent(TOKEN));
     if (!res.ok) {
       var respText = await res.text();
       throw new Error(respText || ('HTTP ' + res.status));
@@ -1237,7 +1373,7 @@ async function save() {
   }
   var json = JSON.stringify(toJson(), null, 2);
   try {
-    var res = await fetch('/api/save?file=' + encodeURIComponent(currentFile) + '&token=' + encodeURIComponent(TOKEN), {
+    var res = await apiFetch('/api/save?file=' + encodeURIComponent(currentFile) + '&token=' + encodeURIComponent(TOKEN), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: json
@@ -1262,7 +1398,7 @@ async function newFile() {
   // 简单校验文件名合法性
   if (/[\\\/]/.test(name)) { showStatus(t('msg.invalid_filename'), true); return; }
   try {
-    var res = await fetch('/api/new?file=' + encodeURIComponent(name) + '&token=' + encodeURIComponent(TOKEN), { method: 'POST' });
+    var res = await apiFetch('/api/new?file=' + encodeURIComponent(name) + '&token=' + encodeURIComponent(TOKEN), { method: 'POST' });
     if (res.status === 409) { showStatus(t('msg.file_exists') + name, true); return; }
     if (!res.ok) {
       var respText = await res.text();
@@ -1280,7 +1416,7 @@ async function deleteFile() {
   if (!currentFile) { showStatus(t('msg.no_file'), true); return; }
   if (!confirm(t('msg.delete_confirm_prefix') + currentFile + t('msg.delete_confirm_suffix'))) return;
   try {
-    var res = await fetch('/api/delete?file=' + encodeURIComponent(currentFile) + '&token=' + encodeURIComponent(TOKEN), { method: 'DELETE' });
+    var res = await apiFetch('/api/delete?file=' + encodeURIComponent(currentFile) + '&token=' + encodeURIComponent(TOKEN), { method: 'DELETE' });
     if (!res.ok) {
       var respText = await res.text();
       throw new Error(respText || ('HTTP ' + res.status));
