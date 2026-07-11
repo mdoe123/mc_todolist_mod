@@ -383,8 +383,18 @@ var files = [];              // /api/list 返回的文件列表
 var dirty = false;           // 工作区是否有未保存改动
 var suppressDirty = false;   // 程序化操作时抑制 dirty 标志
 
-// CSRF 防护 token：从页面 URL 查询参数读取，所有 /api/* 请求需携带
-const TOKEN = new URLSearchParams(location.search).get('token') || '';
+// CSRF 防护 token：优先从 sessionStorage 读取（模式切换后保留），首次从 URL 读取后存入并清除 URL 中的 token
+var TOKEN = sessionStorage.getItem('todolist_token') || '';
+if (!TOKEN) {
+    TOKEN = new URLSearchParams(location.search).get('token') || '';
+    if (TOKEN) {
+        sessionStorage.setItem('todolist_token', TOKEN);
+        // 从 URL 中清除 token，防止泄露到历史记录/Referer
+        var cleanUrl = new URL(location.href);
+        cleanUrl.searchParams.delete('token');
+        history.replaceState(null, '', cleanUrl);
+    }
+}
 
 var statusEl = document.getElementById('status');
 var fileListEl = document.getElementById('fileList');
@@ -1345,11 +1355,11 @@ document.getElementById('modeFormBtn').addEventListener('click', function () {
   if (dirty && !confirm(t('msg.discard_changes'))) return;
   var target = '/';
   if (currentFile) {
-    target = '/?mode=form&file=' + encodeURIComponent(currentFile) + '&token=' + encodeURIComponent(TOKEN);
+    target = '/?mode=form&file=' + encodeURIComponent(currentFile);
   } else {
-    target = '/?mode=form&token=' + encodeURIComponent(TOKEN);
+    target = '/?mode=form';
   }
-  location.href = target;
+  location.href = target;  // token 已在 sessionStorage，不再拼入 URL
 });
 
 /* ============================================================

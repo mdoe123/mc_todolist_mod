@@ -41,6 +41,9 @@ public class ExpressionEvaluator {
                 ChecklistStore.LOGGER.warn("[ChatTodolist] 表达式未完全解析: {}", expr);
             }
             return result;
+        } catch (StackOverflowError e) {
+            ChecklistStore.LOGGER.warn("[ChatTodolist] 表达式嵌套过深导致栈溢出 '{}'", expr);
+            return null;
         } catch (Exception e) {
             ChecklistStore.LOGGER.warn("[ChatTodolist] 表达式求值失败 '{}': {}", expr, e.getMessage());
             return null;

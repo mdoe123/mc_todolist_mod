@@ -19,9 +19,18 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ClickTokens {
     private static final Map<String, PendingChoice> TOKENS = new ConcurrentHashMap<>();
     private static final SecureRandom RNG = new SecureRandom();
+    /** 令牌最大存活时间（毫秒），超时自动清理。默认 30 分钟。 */
+    private static final long TOKEN_TTL_MS = 30 * 60 * 1000L;
+    /** 上次清理时间 */
+    private static long lastCleanupTime = 0;
 
     /** 注册一个待处理选择，返回令牌字符串（128 位随机 hex） */
     public static String register(PendingChoice pc) {
+        // 每次注册时检查是否需要清理过期令牌
+        long now = System.currentTimeMillis();
+        if (now - lastCleanupTime > TOKEN_TTL_MS) {
+            cleanupExpired(now);
+        }
         byte[] bytes = new byte[16];
         RNG.nextBytes(bytes);
         String token = HexFormat.of().formatHex(bytes);
@@ -40,6 +49,24 @@ public class ClickTokens {
         Iterator<Map.Entry<String, PendingChoice>> it = TOKENS.entrySet().iterator();
         while (it.hasNext()) {
             if (it.next().getValue().executor == executor) {
+                it.remove();
+            }
+        }
+    }
+
+    /** 清空全部令牌（世界卸载 / 模组关闭时调用，防止内存泄漏） */
+    public static void clearAll() {
+        TOKENS.clear();
+        lastCleanupTime = System.currentTimeMillis();
+    }
+
+    /** 清理过期的令牌（基于执行器的 finished 标志） */
+    private static void cleanupExpired(long now) {
+        lastCleanupTime = now;
+        Iterator<Map.Entry<String, PendingChoice>> it = TOKENS.entrySet().iterator();
+        while (it.hasNext()) {
+            PendingChoice pc = it.next().getValue();
+            if (pc != null && pc.executor != null && pc.executor.isFinished()) {
                 it.remove();
             }
         }

@@ -91,7 +91,7 @@ public class TodoListCommand {
         }
         src.sendFeedback(Text.translatable("todolist.list.count", all.size()).formatted(Formatting.GOLD));
         for (Entry e : all.values()) {
-            String name = e.checklist.name;
+            String name = sanitizeName(e.checklist.name);
             int n = e.checklist.tasks == null ? 0 : e.checklist.tasks.size();
             MutableText line = Text.translatable("todolist.list.bullet").formatted(Formatting.GRAY);
             line.append(Text.literal(name).setStyle(Style.EMPTY
@@ -134,7 +134,7 @@ public class TodoListCommand {
             } else {
                 int total = cl.tasks == null ? 0 : cl.tasks.size();
                 statusText = Text.translatable("todolist.is.status.running",
-                        t == null ? "?" : t.id, total, exec.getStepCount(), cl.maxSteps);
+                        t == null || t.id == null ? "?" : t.id, total, exec.getStepCount(), cl.maxSteps);
             }
             src.sendFeedback(Text.translatable("todolist.is.item", cl.name, statusText).formatted(Formatting.AQUA));
         }
@@ -280,7 +280,12 @@ public class TodoListCommand {
      */
     private static int runEditNoName(CommandContext<FabricClientCommandSource> ctx) {
         FabricClientCommandSource src = ctx.getSource();
-        ChecklistEditorServer.ensureStarted();
+        int port = ChecklistEditorServer.ensureStarted();
+        if (port < 0) {
+            src.sendFeedback(Text.translatable("todolist.edit.start_failed")
+                    .formatted(Formatting.RED));
+            return 0;
+        }
         String url = ChecklistEditorServer.baseUrl() + "/?token=" + ChecklistEditorServer.getSecretToken();
         sendClickableUrl(src, url);
         return 1;
@@ -297,7 +302,12 @@ public class TodoListCommand {
         String name = StringArgumentType.getString(ctx, "name");
         Entry entry = ChecklistStore.find(name);
         // 启动编辑器服务器（若未运行）
-        ChecklistEditorServer.ensureStarted();
+        int port = ChecklistEditorServer.ensureStarted();
+        if (port < 0) {
+            src.sendFeedback(Text.translatable("todolist.edit.start_failed")
+                    .formatted(Formatting.RED));
+            return 0;
+        }
         String token = ChecklistEditorServer.getSecretToken();
         String url;
         if (entry != null) {
@@ -366,5 +376,18 @@ public class TodoListCommand {
             }
         });
         return 1;
+    }
+
+    /** 清理清单名：移除换行符与控制字符，截断到 100 字符。防止 ClickEvent 命令拼接异常 */
+    private static String sanitizeName(String name) {
+        if (name == null) return "";
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < name.length() && sb.length() < 100; i++) {
+            char c = name.charAt(i);
+            if (c == '\n' || c == '\r' || c == '\t') continue;
+            if (c < 0x20 || c == 0x7F) continue;
+            sb.append(c);
+        }
+        return sb.toString();
     }
 }

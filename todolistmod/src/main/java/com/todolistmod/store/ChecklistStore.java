@@ -23,8 +23,8 @@ import java.util.stream.Stream;
 public class ChecklistStore {
     public static final Logger LOGGER = LoggerFactory.getLogger("ChatTodolist");
     private static final Gson GSON = new Gson();
-    /** 上次扫描时目录的最后修改时间，用于检测是否需要重新加载 */
-    private static FileTime lastDirModTime;
+    /** 上次扫描时所有 .json 文件的最后修改时间最大值，用于检测是否需要重新加载 */
+    private static FileTime lastFileModTime;
     /** 缓存的全量加载结果 */
     private static Map<String, Entry> cachedEntries;
 
@@ -121,27 +121,48 @@ public class ChecklistStore {
         Path dir = getDir();
         if (!Files.isDirectory(dir)) {
             cachedEntries = null;
-            lastDirModTime = null;
+            lastFileModTime = null;
             return new LinkedHashMap<>();
         }
-        try {
-            FileTime currentMod = Files.getLastModifiedTime(dir);
-            if (cachedEntries != null && currentMod.equals(lastDirModTime)) {
-                return cachedEntries;
+        // 先扫描目录获取所有 .json 文件的 mtime 最大值，与缓存对比
+        FileTime currentModTime = null;
+        try (Stream<Path> stream = Files.list(dir)) {
+            var jsonFiles = stream.filter(p -> p.toString().endsWith(".json")).toList();
+            for (Path p : jsonFiles) {
+                try {
+                    FileTime ft = Files.getLastModifiedTime(p);
+                    if (currentModTime == null || ft.compareTo(currentModTime) > 0) {
+                        currentModTime = ft;
+                    }
+                } catch (IOException ignored) {
+                    // 忽略单个文件的时间获取失败
+                }
             }
-            lastDirModTime = currentMod;
         } catch (IOException e) {
-            // 无法获取修改时间，回退到每次重新扫描
+            LOGGER.error("[ChatTodolist] 读取 todolist 目录失败", e);
+            return cachedEntries != null ? cachedEntries : new LinkedHashMap<>();
         }
+        if (cachedEntries != null && currentModTime != null && currentModTime.equals(lastFileModTime)) {
+            return cachedEntries;
+        }
+        lastFileModTime = currentModTime;
         Map<String, Entry> map = new LinkedHashMap<>();
         try (Stream<Path> stream = Files.list(dir)) {
             stream.filter(p -> p.toString().endsWith(".json")).forEach(p -> {
-                try (Reader reader = Files.newBufferedReader(p)) {
-                    Checklist c = GSON.fromJson(reader, Checklist.class);
-                    if (c != null && c.name != null && c.tasks != null) {
-                        map.putIfAbsent(c.name, new Entry(c, p));
-                    } else {
-                        LOGGER.warn("[ChatTodolist] 清单缺少 name 或 tasks，已跳过: {}", p.getFileName());
+                try {
+                    // 文件大小限制（1MB），防止超大 JSON 导致 OOM
+                    long size = Files.size(p);
+                    if (size > 1024 * 1024) {
+                        LOGGER.warn("[ChatTodolist] 清单文件过大 ({} bytes)，已跳过: {}", size, p.getFileName());
+                        return;
+                    }
+                    try (Reader reader = Files.newBufferedReader(p)) {
+                        Checklist c = GSON.fromJson(reader, Checklist.class);
+                        if (c != null && c.name != null && c.tasks != null) {
+                            map.putIfAbsent(c.name, new Entry(c, p));
+                        } else {
+                            LOGGER.warn("[ChatTodolist] 清单缺少 name 或 tasks，已跳过: {}", p.getFileName());
+                        }
                     }
                 } catch (IOException | JsonSyntaxException e) {
                     LOGGER.error("[ChatTodolist] 解析清单失败: {}", p.getFileName(), e);
@@ -162,6 +183,6 @@ public class ChecklistStore {
     /** 使缓存失效，下次 loadAll() 将强制重新扫描目录。编辑器保存/新建/删除后调用。 */
     public static void invalidateCache() {
         cachedEntries = null;
-        lastDirModTime = null;
+        lastFileModTime = null;
     }
 }

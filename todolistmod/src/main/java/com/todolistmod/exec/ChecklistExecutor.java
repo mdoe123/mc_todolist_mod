@@ -1,6 +1,7 @@
 package com.todolistmod.exec;
 
 import com.todolistmod.chat.ChatRenderer;
+import com.todolistmod.ModConfig;
 import com.todolistmod.model.Checklist;
 import com.todolistmod.model.ChecklistAction;
 import com.todolistmod.model.ChecklistTask;
@@ -35,6 +36,12 @@ public class ChecklistExecutor {
     private final Deque<ChecklistTask> stepHistory = new ArrayDeque<>();
     /** 自定义变量存储（set 动作写入，表达式/print/run 读取） */
     private final Map<String, Object> variables = new HashMap<>();
+    /** 待确认的高危命令（非 null 表示正在等待玩家确认高危指令） */
+    private String pendingDangerousCommand;
+    /** 高危确认时保存的剩余动作列表 */
+    private List<ChecklistAction> pendingActions;
+    /** 高危确认时剩余动作的起始索引 */
+    private int pendingActionIndex;
 
     public ChecklistExecutor(Checklist checklist) {
         this.checklist = checklist;
@@ -91,6 +98,12 @@ public class ChecklistExecutor {
                 ChatRenderer.printRaw(Text.literal(line).formatted(Formatting.DARK_GRAY));
             }
         }
+        // 重新校验 tasks 非空，防止 start() 之后到 beginExecution 之间状态变化
+        if (checklist.tasks == null || checklist.tasks.isEmpty()) {
+            ChatRenderer.printPlain(Text.translatable("todolist.exec.empty"));
+            finished = true;
+            return;
+        }
         currentTask = checklist.tasks.get(0);
         stepCount = 1;
         finished = false;
@@ -122,7 +135,9 @@ public class ChecklistExecutor {
     public void chooseCurrent(boolean choice) {
         if (pendingVersionConfirm) {
             choose(-1, choice);
-        } else if (currentTask != null) {
+        } else if (pendingDangerousCommand != null) {
+            choose(-2, choice);
+        } else if (currentTask != null && currentTask.id != null) {
             choose(currentTask.id, choice);
         }
     }
@@ -145,11 +160,31 @@ public class ChecklistExecutor {
             }
             return;
         }
+        // 高危命令确认场景：taskId=-2 表示玩家在高危指令警告界面点击继续/跳过
+        if (taskId == -2) {
+            if (pendingDangerousCommand != null) {
+                String cmd = pendingDangerousCommand;
+                List<ChecklistAction> remaining = pendingActions;
+                int idx = pendingActionIndex;
+                pendingDangerousCommand = null;
+                pendingActions = null;
+                if (choice) {
+                    ChatRenderer.printPlain(Text.translatable("todolist.exec.dangerous_confirmed")
+                            .formatted(Formatting.GRAY));
+                    runCommand(cmd);
+                } else {
+                    ChatRenderer.printPlain(Text.translatable("todolist.exec.dangerous_skipped")
+                            .formatted(Formatting.YELLOW));
+                }
+                executeActions(remaining, idx);
+            }
+            return;
+        }
         if (finished) {
             ChatRenderer.printPlain(Text.translatable("todolist.exec.finished"));
             return;
         }
-        if (currentTask == null || currentTask.id != taskId) {
+        if (currentTask == null || currentTask.id == null || currentTask.id != taskId) {
             ChatRenderer.printPlain(Text.translatable("todolist.exec.option_expired"));
             return;
         }
@@ -157,13 +192,32 @@ public class ChecklistExecutor {
         if (actions == null) {
             actions = Collections.emptyList();
         }
-        for (ChecklistAction a : actions) {
+        executeActions(actions, 0);
+    }
+
+    /**
+     * 执行动作列表，遇到高危命令时暂停并等待玩家确认。
+     *
+     * @param actions    要执行的动作列表
+     * @param startIndex 起始索引（用于高危确认后从断点继续）
+     */
+    private void executeActions(List<ChecklistAction> actions, int startIndex) {
+        for (int i = startIndex; i < actions.size(); i++) {
+            ChecklistAction a = actions.get(i);
             if (a == null || a.type == null) {
                 continue;
             }
             switch (a.type) {
                 case "run":
-                    runCommand(ExpressionEvaluator.substitute(a.command, variables));
+                    String cmd = ExpressionEvaluator.substitute(a.command, variables);
+                    if (isDangerousCommand(cmd)) {
+                        pendingDangerousCommand = cmd;
+                        pendingActions = actions;
+                        pendingActionIndex = i + 1;
+                        renderDangerousConfirm(cmd);
+                        return;
+                    }
+                    runCommand(cmd);
                     break;
                 case "print":
                     ChatRenderer.printPlain(ExpressionEvaluator.substitute(a.text, variables));
@@ -191,6 +245,37 @@ public class ChecklistExecutor {
         // 分支中未出现 jumpto/end：暂停
         ClickTokens.clearForExecutor(this);
         ChatRenderer.printPlain(Text.translatable("todolist.exec.paused"));
+    }
+
+    /** 判断命令是否为高危指令（第一个 token 匹配 dangerousCommands 列表） */
+    private boolean isDangerousCommand(String command) {
+        ModConfig cfg = ModConfig.INSTANCE;
+        if (cfg == null || !cfg.dangerousCommandConfirm) return false;
+        if (cfg.dangerousCommands == null || cfg.dangerousCommands.isEmpty()) return false;
+        if (command == null || command.trim().isEmpty()) return false;
+        String cmd = command.trim();
+        while (!cmd.isEmpty() && cmd.charAt(0) == '/') cmd = cmd.substring(1);
+        int spaceIdx = cmd.indexOf(' ');
+        String firstToken = spaceIdx > 0 ? cmd.substring(0, spaceIdx) : cmd;
+        for (String dangerous : cfg.dangerousCommands) {
+            if (dangerous != null && !dangerous.isEmpty() && dangerous.equalsIgnoreCase(firstToken)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 渲染高危命令确认警告与 [继续][跳过] 按钮 */
+    private void renderDangerousConfirm(String command) {
+        ChatRenderer.printPlain(Text.translatable("todolist.exec.dangerous_warning", command)
+                .formatted(Formatting.RED));
+        ClickTokens.clearForExecutor(this);
+        PendingChoice confirmPc = new PendingChoice(this, -2, true);
+        PendingChoice skipPc = new PendingChoice(this, -2, false);
+        String confirmToken = ClickTokens.register(confirmPc);
+        String skipToken = ClickTokens.register(skipPc);
+        ChatRenderer.printButtons(Text.translatable("todolist.exec.dangerous_confirm"), confirmToken,
+                Text.translatable("todolist.exec.dangerous_cancel"), skipToken);
     }
 
     /**
@@ -235,6 +320,12 @@ public class ChecklistExecutor {
             return;
         }
         if (checklist.maxSteps > 0 && stepCount >= checklist.maxSteps) {
+            ChatRenderer.printPlain(Text.translatable("todolist.exec.max_steps", checklist.maxSteps));
+            finished = true;
+            return;
+        }
+        // 防止 stepCount 溢出为负数导致 maxSteps 保护失效
+        if (stepCount < 0 || stepCount == Integer.MAX_VALUE) {
             ChatRenderer.printPlain(Text.translatable("todolist.exec.max_steps", checklist.maxSteps));
             finished = true;
             return;
@@ -285,7 +376,8 @@ public class ChecklistExecutor {
             return null;
         }
         for (ChecklistTask t : checklist.tasks) {
-            if (t.id == id.intValue()) {
+            // 跳过未指定 id 的步骤（t.id 为 null），避免默认 0 导致 findTask(0) 歧义
+            if (id.equals(t.id)) {
                 return t;
             }
         }

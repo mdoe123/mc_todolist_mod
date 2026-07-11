@@ -10,6 +10,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 模组配置，读写 config/todolistmod.json。
@@ -29,6 +31,10 @@ public class ModConfig {
     public int maxStepsLimit = 100;
     /** 界面语言（"system"/"zh_cn"/"en_us"） */
     public String language = "system";
+    /** 是否对高危指令进行确认（true=启用，遇到 dangerousCommands 中的指令前缀时暂停并等待玩家确认） */
+    public boolean dangerousCommandConfirm = true;
+    /** 高危指令前缀列表（不区分大小写，不含前导 /）。空列表则不拦截任何命令 */
+    public List<String> dangerousCommands = new ArrayList<>();
 
     /** 配置文件路径 */
     public static Path getPath() {
@@ -60,6 +66,7 @@ public class ModConfig {
     private void fillDefaults() {
         // Gson 对基本类型 int 不会为 null，但 String 可能为 null
         if (language == null) language = "system";
+        if (dangerousCommands == null) dangerousCommands = new ArrayList<>();
     }
 
     /** 保存配置到文件 */

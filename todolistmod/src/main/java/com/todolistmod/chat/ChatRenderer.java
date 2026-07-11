@@ -59,15 +59,15 @@ public class ChatRenderer {
         }
 
         int total = cl.tasks == null ? 0 : cl.tasks.size();
-        String header = String.format("[%s] id %d/%d",
-                cl.name == null ? "?" : cl.name, task.id, total);
+        String header = String.format("[%s] id %s/%d",
+                cl.name == null ? "?" : cl.name, task.id == null ? "?" : task.id, total);
         client.inGameHud.getChatHud().addMessage(
                 Text.literal(header).formatted(Formatting.GOLD, Formatting.BOLD));
 
         client.inGameHud.getChatHud().addMessage(
                 Text.literal(task.desc == null ? "" : task.desc).formatted(Formatting.WHITE));
 
-        if (task.option != null) {
+        if (task.option != null && task.id != null) {
             TaskOption opt = task.option;
             String trueLabel = opt.trueText != null ? opt.trueText : "是";
             String falseLabel = opt.falseText != null ? opt.falseText : "否";

@@ -142,19 +142,27 @@ public final class ChecklistEditorServer {
         return null;
     }
 
-    /** 为响应添加安全头：禁止 MIME 嗅探、禁止被嵌入 iframe、限制 CSP 仅允许内联脚本与本地资源 */
-    private static void applySecurityHeaders(HttpExchange exchange) {
+    /**
+     * 为响应添加安全头。HTML 页面传入 nonce 用于 CSP；其他响应 nonce 传 null。
+     * nonce 非 null 时：script-src/style-src 用 'nonce-<value>' 替代 'unsafe-inline'
+     */
+    private static void applySecurityHeaders(HttpExchange exchange, String nonce) {
         var headers = exchange.getResponseHeaders();
         headers.set("X-Content-Type-Options", "nosniff");
         headers.set("X-Frame-Options", "DENY");
-        // 编辑器页面为纯内联脚本 + 本地 /assets/blockly/ 资源，不允许外部源
-        headers.set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'");
+        if (nonce != null) {
+            headers.set("Content-Security-Policy",
+                    "default-src 'self'; script-src 'self' 'nonce-" + nonce + "'; style-src 'self' 'nonce-" + nonce + "'");
+        } else {
+            // 非 HTML 响应（JSON、Blockly 静态资源）保持严格 CSP
+            headers.set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'");
+        }
     }
 
     /** 发送 JSON 响应。 */
     private static void sendJson(HttpExchange exchange, int code, String json) throws IOException {
         byte[] bytes = json.getBytes(StandardCharsets.UTF_8);
-        applySecurityHeaders(exchange);
+        applySecurityHeaders(exchange, null);
         exchange.getResponseHeaders().set("Content-Type", "application/json; charset=utf-8");
         exchange.sendResponseHeaders(code, bytes.length);
         try (OutputStream os = exchange.getResponseBody()) {
@@ -164,7 +172,7 @@ public final class ChecklistEditorServer {
 
     /** 发送原始字节响应。 */
     private static void sendBytes(HttpExchange exchange, int code, byte[] data, String contentType) throws IOException {
-        applySecurityHeaders(exchange);
+        applySecurityHeaders(exchange, null);
         exchange.getResponseHeaders().set("Content-Type", contentType);
         exchange.sendResponseHeaders(code, data.length);
         try (OutputStream os = exchange.getResponseBody()) {
@@ -257,8 +265,20 @@ public final class ChecklistEditorServer {
                     safeSend(exchange, 500, "{\"error\":\"editor resource not found\"}");
                     return;
                 }
-                byte[] data = in.readAllBytes();
-                sendBytes(exchange, 200, data, "text/html; charset=utf-8");
+                String html = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+                // 生成 128 位随机 nonce，注入到内联 <script>/<style> 标签，CSP 用 nonce 替代 'unsafe-inline'
+                byte[] nonceBytes = new byte[16];
+                new java.security.SecureRandom().nextBytes(nonceBytes);
+                String nonce = java.util.HexFormat.of().formatHex(nonceBytes);
+                html = html.replace("<script>", "<script nonce=\"" + nonce + "\">")
+                           .replace("<style>", "<style nonce=\"" + nonce + "\">");
+                byte[] data = html.getBytes(StandardCharsets.UTF_8);
+                exchange.getResponseHeaders().set("Content-Type", "text/html; charset=utf-8");
+                applySecurityHeaders(exchange, nonce);
+                exchange.sendResponseHeaders(200, data.length);
+                try (OutputStream os = exchange.getResponseBody()) {
+                    os.write(data);
+                }
             }
         }
 

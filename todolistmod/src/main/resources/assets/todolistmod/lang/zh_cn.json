@@ -17,6 +17,7 @@
   "todolist.edit.not_found": "未找到清单: %s，已打开编辑器",
   "todolist.edit.click_to_open": "→ 点击打开编辑器",
   "todolist.edit.stopped": "编辑器后端已关闭。",
+  "todolist.edit.start_failed": "编辑器服务器启动失败，请查看日志。",
   "todolist.exec.empty": "清单为空，无法执行。",
   "todolist.exec.completed": "（清单已完成）",
   "todolist.exec.finished": "该清单已结束。",
@@ -38,5 +39,10 @@
   "todolist.do.version_cancelled": "已取消执行清单 [%s]。",
   "todolist.do.version_too_low": "当前 MC 版本低于清单要求下限。",
   "todolist.do.version_too_high": "当前 MC 版本高于清单要求上限。",
-  "todolist.exec.expr_error": "表达式求值失败: %s"
+  "todolist.exec.expr_error": "表达式求值失败: %s",
+  "todolist.exec.dangerous_warning": "⚠ 即将执行高危指令: %s",
+  "todolist.exec.dangerous_confirm": "继续执行",
+  "todolist.exec.dangerous_cancel": "跳过",
+  "todolist.exec.dangerous_confirmed": "（已确认执行高危指令）",
+  "todolist.exec.dangerous_skipped": "（已跳过高危指令）"
 }

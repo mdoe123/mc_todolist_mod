@@ -30,8 +30,8 @@ cd todolistmod && gradlew.bat build
 
 构建产物在 `todolistmod/build/libs/`：
 
-- `todolistmod-1.4.1.jar` —— 这就是要放进 `mods` 文件夹的模组文件
-- `todolistmod-1.4.1-sources.jar` —— 源码包（可选）
+- `todolistmod-1.4.4.jar` —— 这就是要放进 `mods` 文件夹的模组文件
+- `todolistmod-1.4.4-sources.jar` —— 源码包（可选）
 
 > 首次构建会自动下载 Minecraft、Yarn 映射和依赖，耗时较长，属正常现象。
 > 若 `services.gradle.org` 下载 Gradle 本体很慢，可把 `gradle/wrapper/gradle-wrapper.properties`
@@ -41,7 +41,7 @@ cd todolistmod && gradlew.bat build
 ## 安装
 
 1. 确保已安装 Fabric Loader 和 Fabric API（选择与你当前 Minecraft 1.21.x 版本对应的 Fabric API）。
-2. 把 `todolistmod-1.4.1.jar` 放进 `.minecraft/mods/`。
+2. 把 `todolistmod-1.4.4.jar` 放进 `.minecraft/mods/`。
 3. 启动游戏。首次进入世界时，模组会在**游戏根目录**生成 `todolist` 文件夹；若配置项 `generateExample` 为 `true`（默认），还会写入一个 `example.json` 示例清单。
 
 ## 配置文件
@@ -54,6 +54,8 @@ cd todolistmod && gradlew.bat build
 | `editorPort` | int | `0` | 编辑器 HTTP 服务器端口，`0` 表示自动分配 |
 | `maxStepsLimit` | int | `100` | 清单最大步骤数上限（防死循环） |
 | `language` | string | `"system"` | 界面语言：`"system"`（跟随游戏语言）/ `"zh_cn"` / `"en_us"` |
+| `dangerousCommandConfirm` | boolean | `true` | 是否对高危指令进行确认。启用后，`run` 动作执行 `dangerousCommands` 列表中的指令前会暂停清单并弹出 [继续][跳过] 按钮 |
+| `dangerousCommands` | string[] | `[]` | 高危指令前缀列表（不区分大小写，不含前导 `/`）。如 `["op","deop","stop","give","gamemode","ban","kick","execute","reload"]`。空列表则不拦截任何命令 |
 
 > 配置在 `onInitializeClient` 阶段最先加载（早于 `ChecklistStore.ensureDir()`），因此 `generateExample` 能控制首次示例清单的生成。
 
@@ -299,6 +301,32 @@ cd todolistmod && gradlew.bat build
 - `todolist.exec.*`：`ChecklistExecutor` 执行引擎运行时的提示（如清单为空、已完成、暂停、返回上一步等）
 
 > **注意**：清单 JSON 文件内的用户内容（`print` 动作的 `text`、`end` 动作的 `message`、清单 `name`、步骤 `desc`、按钮 `trueText`/`falseText`）属于用户数据，**不会被翻译**，按原样输出。
+
+## 更新历史
+
+### v1.4.4 — 健壮性修复（P1-E）
+
+- **P1-E1** `ExpressionEvaluator`：递归下降解析器深度嵌套表达式时抛 `StackOverflowError`（extends `Error`，`catch (Exception)` 无法捕获），新增 `catch (StackOverflowError)` 防止客户端崩溃。
+- **P1-E2** `ChecklistExecutor`：`stepCount` 为 `int`，溢出为负数后 `maxSteps` 保护失效导致无限循环。`jumpTo()` 新增溢出检查，达 `Integer.MAX_VALUE` 或负值时终止清单。
+- **P1-E3** `ChecklistExecutor`：`beginExecution()` 中 `tasks.get(0)` 未重新校验 `tasks` 是否为空。新增空集合二次校验，防止 `start()` 与 `beginExecution()` 之间状态变化导致越界。
+- **P1-E4** `TodoListCommand`：`ensureStarted()` 可能返回 -1（启动失败），未检查直接构造 URL。`runEditNoName` 与 `runEdit` 均新增返回值检查，失败时提示并退出。
+- **P1-E5** `ChecklistStore`：从文件系统加载清单无大小限制，超大 JSON 可导致 OOM。`loadAll()` 新增 1MB 单文件大小限制，超限跳过并告警。
+- **P1-E6** `ChecklistStore`：缓存失效基于目录 mtime，文件内容修改不一定更新目录 mtime 且精度可能为秒级。改为扫描所有 `.json` 文件的最大 mtime，失效检测更可靠。
+- **P1-E7** `ClickTokens`：执行器异常终止未清理时 token 永久残留。新增 TTL（30 分钟）过期清理、`clearAll()` 方法，并在世界卸载时（`ClientPlayConnectionEvents.DISCONNECT`）自动清空全部令牌。
+- **P1-E8** `ChecklistTask`：`id` 为 `int` 默认 0，缺少 `id` 的步骤被 Gson 设为 0 后 `findTask(0)` 行为不确定。改为 `Integer`（缺失为 null），`findTask` 跳过 null id，全链路 null 安全。
+
+### v1.4.3 — 安全加固（P0 + P1-S）
+
+- **P0-1** 高危指令确认：`run` 动作执行任意命令无拦截。新增 `dangerousCommandConfirm`（开关）与 `dangerousCommands`（前缀列表）配置项，命中高危命令时暂停并弹出 [继续][跳过] 按钮，支持从断点继续执行剩余动作。
+- **P0-2** ClickEvent 名称注入：清单 `name` 直接拼入 `/todolist do <name>` 的 `ClickEvent.RUN_COMMAND`，未转义换行/控制字符。新增 `sanitizeName()` 清洗。
+- **P1-S2** CSP `unsafe-inline` 替换：编辑器 HTML 改为每请求生成 128 位随机 nonce 注入 `<script>`/`<style>` 标签，CSP 用 `nonce-<value>` 替代 `unsafe-inline`。
+- **P1-S3** Token 存储迁移：编辑器 CSRF token 从 URL 参数迁移到 `sessionStorage`，URL 用 `history.replaceState` 清除，模式切换不携带 token，减小泄露面。
+
+### v1.4.0 — 块编辑器集成变量/运算/逻辑块 + 表编辑器变量名自动补全
+
+- 块编辑器新增「变量」「运算」「逻辑」三个 Blockly 分类，支持可视化拼装表达式。
+- 表编辑器在 `print`/`run`/`set`/`if` 文本框中输入 `${` 时弹出变量自动补全列表（20 个预定义游戏变量 + 自定义变量）。
+- 新增 `set`（变量赋值）与 `if`（条件跳转）动作类型，支持 `${var}` 表达式插值。
 
 ## 许可证
 

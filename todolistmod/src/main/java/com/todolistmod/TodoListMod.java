@@ -1,8 +1,10 @@
 package com.todolistmod;
 
 import com.todolistmod.command.TodoListCommand;
+import com.todolistmod.exec.ClickTokens;
 import com.todolistmod.store.ChecklistStore;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,6 +23,8 @@ public class TodoListMod implements ClientModInitializer {
         ModConfig.load();
         ChecklistStore.ensureDir();
         TodoListCommand.register();
+        // 世界卸载时清空全部点击令牌，防止执行器异常终止导致 token 残留内存泄漏
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> ClickTokens.clearAll());
         LOGGER.info("[ChatTodolist] 已初始化。把 .json 清单放到 <游戏目录>/todolist/ ，然后用 /todolist list 查看。");
     }
 }

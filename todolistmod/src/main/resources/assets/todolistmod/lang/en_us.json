@@ -17,6 +17,7 @@
   "todolist.edit.not_found": "Checklist not found: %s, editor opened anyway",
   "todolist.edit.click_to_open": "-> Click to open editor",
   "todolist.edit.stopped": "Editor backend has been stopped.",
+  "todolist.edit.start_failed": "Editor server failed to start, check logs.",
   "todolist.exec.empty": "Checklist is empty, cannot execute.",
   "todolist.exec.completed": "(Checklist completed)",
   "todolist.exec.finished": "This checklist has ended.",
@@ -38,5 +39,10 @@
   "todolist.do.version_cancelled": "Cancelled checklist [%s].",
   "todolist.do.version_too_low": "Current MC version is below the required minimum.",
   "todolist.do.version_too_high": "Current MC version is above the required maximum.",
-  "todolist.exec.expr_error": "Expression evaluation failed: %s"
+  "todolist.exec.expr_error": "Expression evaluation failed: %s",
+  "todolist.exec.dangerous_warning": "⚠ About to execute dangerous command: %s",
+  "todolist.exec.dangerous_confirm": "Execute",
+  "todolist.exec.dangerous_cancel": "Skip",
+  "todolist.exec.dangerous_confirmed": "(Dangerous command confirmed)",
+  "todolist.exec.dangerous_skipped": "(Dangerous command skipped)"
 }

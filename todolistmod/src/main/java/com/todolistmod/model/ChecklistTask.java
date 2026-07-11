@@ -6,8 +6,8 @@ import java.util.List;
  * 清单中的一个步骤。
  */
 public class ChecklistTask {
-    /** 步骤 id，jumpto 动作通过它定位目标步骤 */
-    public int id;
+    /** 步骤 id，jumpto 动作通过它定位目标步骤。null 表示 JSON 未指定 id（不参与跳转匹配） */
+    public Integer id;
     /** 步骤描述，显示在聊天栏 */
     public String desc;
     /** 选项配置；为 null 表示这是终止步骤（只展示描述，无按钮） */
