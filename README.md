@@ -30,8 +30,8 @@ cd todolistmod && gradlew.bat build
 
 构建产物在 `todolistmod/build/libs/`：
 
-- `todolistmod-1.3.0.jar` —— 这就是要放进 `mods` 文件夹的模组文件
-- `todolistmod-1.3.0-sources.jar` —— 源码包（可选）
+- `todolistmod-1.4.0.jar` —— 这就是要放进 `mods` 文件夹的模组文件
+- `todolistmod-1.4.0-sources.jar` —— 源码包（可选）
 
 > 首次构建会自动下载 Minecraft、Yarn 映射和依赖，耗时较长，属正常现象。
 > 若 `services.gradle.org` 下载 Gradle 本体很慢，可把 `gradle/wrapper/gradle-wrapper.properties`
@@ -41,7 +41,7 @@ cd todolistmod && gradlew.bat build
 ## 安装
 
 1. 确保已安装 Fabric Loader 和 Fabric API（选择与你当前 Minecraft 1.21.x 版本对应的 Fabric API）。
-2. 把 `todolistmod-1.3.0.jar` 放进 `.minecraft/mods/`。
+2. 把 `todolistmod-1.4.0.jar` 放进 `.minecraft/mods/`。
 3. 启动游戏。首次进入世界时，模组会在**游戏根目录**生成 `todolist` 文件夹；若配置项 `generateExample` 为 `true`（默认），还会写入一个 `example.json` 示例清单。
 
 ## 配置文件
@@ -219,13 +219,20 @@ cd todolistmod && gradlew.bat build
 
 结构化表单（name/type/maxSteps/tasks/option/actions）+ 右侧实时 JSON 预览。
 
+**变量名自动补全**：在 `print` 的 text、`run` 的 command、`set` 的 value、`if` 的 cond 文本框中输入 `${` 时会弹出变量列表，包含 20 个预定义游戏变量（`player.health`、`world.time` 等）以及当前清单 `set` 动作中定义的自定义变量。继续输入可按前缀过滤（如 `${player` 只显示 `player.*` 变量）；↑↓ 键导航、Enter/Tab 选中插入 `${变量名}`；Esc 关闭列表；鼠标点击亦可选择。
+
 ### 块模式（`blockly_editor.html`，`?mode=block`）
 
 基于 Google Blockly 的可视化积木编辑器：
 
-- 工具箱分「步骤」「动作」两个分类，默认展开（`expanded="true"`），分类间以分隔条区分，拖拽即可搭建流程
+- 工具箱分「步骤」「动作」「变量」「运算」「逻辑」五个分类，前两个默认展开（`expanded="true"`），分类间以分隔条区分，拖拽即可搭建流程
 - 步骤块含 `interactive_task`（交互步骤，带 trueDo/falseDo 嵌套槽）与 `terminal_task`（终止步骤）两类
 - 动作块含 `jumpto`（蓝）/ `print`（灰）/ `run`（橙）/ `end`（红）/ `set_var`（青）/ `if`（绿）六类，按颜色区分
+- 变量分类含 `game_var`（游戏变量，紫色，下拉菜单选 20 个预定义变量）、`variables_get`/`variables_set`（Blockly 内置自定义变量块）
+- 运算分类含 `math_number`（数字）、`math_arithmetic`（四则运算 + 幂）—— 用于构建 `set_var` 的值表达式
+- 逻辑分类含 `logic_compare`（比较）、`logic_operation`（与/或）、`logic_negate`（非）、`logic_boolean`（真/假）—— 用于构建 `if` 的条件表达式
+- `set_var` 块的 value 和 `if` 块的 cond 改为值输入槽，可拖入变量/运算/逻辑块可视化拼装表达式；无连接时显示灰色 `expr_text` 影子块占位
+- 加载已有清单时，表达式字符串放入 `expr_text` 影子块显示（不逆向解析为块树），保持完全向后兼容
 - 工具栏提供「复制 / 粘贴 / 撤销 / 重做」四个图标按钮（14×14 线条风 SVG 图标）：复制当前选中块到剪贴板、从剪贴板粘贴块到工作区、撤销/重做工作区操作
 - 自动双向转换 Blockly 工作区 ↔ 清单 JSON，保存前校验 id 唯一性、jumpto 目标存在性以及 `if` 条件跳转目标存在性
 - Blockly 库（`blockly.min.js`，约 758 KB）已打包进 mod 资源，**离线可用**

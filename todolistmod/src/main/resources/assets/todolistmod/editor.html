@@ -234,6 +234,46 @@
 
   .add-task-btn { margin-top: 4px; width: 100%; padding: 8px; border-style: dashed; }
   .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+  /* ---------- 变量自动补全 ---------- */
+  #autocomplete-list {
+    position: absolute;
+    display: none;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    box-shadow: 0 2px 8px var(--shadow);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    font-size: 13px;
+    min-width: 200px;
+  }
+  #autocomplete-list .ac-item {
+    padding: 4px 10px;
+    cursor: pointer;
+    color: var(--fg);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #autocomplete-list .ac-item:hover, #autocomplete-list .ac-item.active {
+    background: var(--hover);
+  }
+  #autocomplete-list .ac-item .ac-name {
+    font-family: "SFMono-Regular", Consolas, monospace;
+    font-size: 12px;
+  }
+  #autocomplete-list .ac-item .ac-type {
+    font-size: 10px;
+    color: var(--muted);
+    margin-left: auto;
+  }
+  #autocomplete-list .ac-empty {
+    padding: 4px 10px;
+    color: var(--muted);
+    font-size: 12px;
+  }
 </style>
 </head>
 <body>
@@ -269,6 +309,8 @@
       <span class="status" id="status"></span>
     </div>
   </div>
+
+  <div id="autocomplete-list"></div>
 
   <div id="main">
     <div id="formPane" class="pane">
@@ -363,6 +405,74 @@ var themeBtn   = document.getElementById('themeBtn');
 var langBtn    = document.getElementById('langBtn');
 
 /* ============================================================
+ * 变量自动补全 — 数据源与状态
+ * ============================================================ */
+// 20 个预定义游戏变量（名称 → 类型）
+var GAME_VARIABLES = [
+  { name: 'player.health', type: 'Number' },
+  { name: 'player.max_health', type: 'Number' },
+  { name: 'player.hunger', type: 'Number' },
+  { name: 'player.saturation', type: 'Number' },
+  { name: 'player.armor', type: 'Number' },
+  { name: 'player.x', type: 'Number' },
+  { name: 'player.y', type: 'Number' },
+  { name: 'player.z', type: 'Number' },
+  { name: 'player.xp_level', type: 'Number' },
+  { name: 'player.gamemode', type: 'String' },
+  { name: 'player.sneaking', type: 'Boolean' },
+  { name: 'player.sprinting', type: 'Boolean' },
+  { name: 'player.on_ground', type: 'Boolean' },
+  { name: 'player.in_water', type: 'Boolean' },
+  { name: 'player.dimension', type: 'String' },
+  { name: 'world.time', type: 'Number' },
+  { name: 'world.day', type: 'Number' },
+  { name: 'world.weather', type: 'String' },
+  { name: 'world.difficulty', type: 'String' },
+  { name: 'world.fps', type: 'Number' }
+];
+
+// 自动补全状态
+var acState = {
+  visible: false,
+  items: [],          // 当前过滤后的列表
+  selectedIndex: -1,  // 当前选中索引
+  activeInput: null,  // 当前触发的 input 元素
+  triggerStart: -1    // ${ 的起始位置
+};
+
+var acListEl = document.getElementById('autocomplete-list');
+
+// 获取当前清单中的自定义变量（从 set 动作中提取）
+function getCustomVariables() {
+  var vars = [];
+  if (model && model.tasks) {
+    for (var i = 0; i < model.tasks.length; i++) {
+      var task = model.tasks[i];
+      var branches = [task.trueDo, task.falseDo];
+      for (var bi = 0; bi < branches.length; bi++) {
+        var actions = branches[bi] || [];
+        for (var ai = 0; ai < actions.length; ai++) {
+          if (actions[ai].type === 'set' && actions[ai].var) {
+            var v = actions[ai].var;
+            // 去重
+            var exists = vars.some(function(x) { return x.name === v; });
+            if (!exists) {
+              vars.push({ name: v, type: 'Custom' });
+            }
+          }
+        }
+      }
+    }
+  }
+  return vars;
+}
+
+// 获取所有可用变量（游戏变量 + 自定义变量）
+function getAllVariables() {
+  return GAME_VARIABLES.concat(getCustomVariables());
+}
+
+/* ============================================================
  * 多语言支持（i18n）
  * ============================================================ */
 var I18N = {
@@ -427,6 +537,7 @@ var I18N = {
     'msg.deleted': '已删除 ',
     'msg.delete_failed': '删除失败: ',
     'msg.serialize_failed': '序列化失败: ',
+    'msg.ac_no_match': '无匹配变量',
     'theme.dark': '深',
     'theme.light': '浅',
     'theme.auto': '自',
@@ -499,6 +610,7 @@ var I18N = {
     'msg.deleted': 'Deleted ',
     'msg.delete_failed': 'Delete failed: ',
     'msg.serialize_failed': 'Serialization failed: ',
+    'msg.ac_no_match': 'No matching variables',
     'theme.dark': 'Dark',
     'theme.light': 'Light',
     'theme.auto': 'Auto',
@@ -764,6 +876,177 @@ function updatePreview() {
 formEl.addEventListener('input', onFormChange);
 formEl.addEventListener('change', onFormChange);
 formEl.addEventListener('click', onFormClick);
+
+// 变量自动补全 — 事件委托
+formEl.addEventListener('input', function(e) {
+  var target = e.target;
+  if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+    var field = target.getAttribute('data-field');
+    // 只在相关字段触发
+    if (field === 'atext' || field === 'acommand' || field === 'avalue' || field === 'acond') {
+      handleAutocompleteInput(target);
+    }
+  }
+});
+
+formEl.addEventListener('keydown', function(e) {
+  if (acState.visible && acState.activeInput === e.target) {
+    handleAutocompleteKeydown(e);
+  }
+});
+
+// 点击外部关闭补全列表
+document.addEventListener('click', function(e) {
+  if (acState.visible && !acListEl.contains(e.target) && e.target !== acState.activeInput) {
+    hideAutocomplete();
+  }
+});
+
+/* ---------- 变量自动补全 — 核心逻辑 ---------- */
+function handleAutocompleteInput(input) {
+  var text = input.value;
+  var cursorPos = input.selectionStart;
+
+  // 在光标位置之前查找最后的 ${
+  var beforeCursor = text.substring(0, cursorPos);
+  var triggerIdx = beforeCursor.lastIndexOf('${');
+
+  if (triggerIdx === -1) {
+    hideAutocomplete();
+    return;
+  }
+
+  // 检查 ${ 后面到光标之间是否有 } 或空格（如果有则关闭补全）
+  var afterTrigger = beforeCursor.substring(triggerIdx + 2);
+  if (afterTrigger.indexOf('}') !== -1 || afterTrigger.indexOf(' ') !== -1) {
+    hideAutocomplete();
+    return;
+  }
+
+  // 触发补全
+  acState.triggerStart = triggerIdx;
+  acState.activeInput = input;
+
+  // 过滤变量
+  var prefix = afterTrigger.toLowerCase();
+  var allVars = getAllVariables();
+  acState.items = allVars.filter(function(v) {
+    return v.name.toLowerCase().indexOf(prefix) === 0;
+  });
+
+  if (acState.items.length === 0) {
+    // 仍然显示空提示
+    showAutocomplete(input);
+    acListEl.innerHTML = '<div class="ac-empty">' + escapeHtml(t('msg.ac_no_match')) + '</div>';
+    return;
+  }
+
+  acState.selectedIndex = 0;
+  renderAutocomplete();
+  showAutocomplete(input);
+}
+
+function handleAutocompleteKeydown(e) {
+  switch (e.key) {
+    case 'ArrowDown':
+      e.preventDefault();
+      acState.selectedIndex = Math.min(acState.selectedIndex + 1, acState.items.length - 1);
+      renderAutocomplete();
+      break;
+    case 'ArrowUp':
+      e.preventDefault();
+      acState.selectedIndex = Math.max(acState.selectedIndex - 1, 0);
+      renderAutocomplete();
+      break;
+    case 'Enter':
+    case 'Tab':
+      e.preventDefault();
+      if (acState.selectedIndex >= 0 && acState.selectedIndex < acState.items.length) {
+        insertVariable(acState.items[acState.selectedIndex].name);
+      }
+      break;
+    case 'Escape':
+      e.preventDefault();
+      hideAutocomplete();
+      break;
+  }
+}
+
+function insertVariable(varName) {
+  var input = acState.activeInput;
+  if (!input) return;
+
+  var text = input.value;
+  var start = acState.triggerStart;
+  var end = input.selectionStart;
+
+  // 替换 ${... 为 ${varName}
+  var newText = text.substring(0, start) + '${' + varName + '}' + text.substring(end);
+  input.value = newText;
+
+  // 设置光标位置在 } 之后
+  var newCursorPos = start + varName.length + 3; // ${} = 3 chars + varName
+  input.setSelectionRange(newCursorPos, newCursorPos);
+
+  hideAutocomplete();
+  input.focus();
+
+  // 触发 input 事件以更新 model
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function renderAutocomplete() {
+  var html = '';
+  for (var i = 0; i < acState.items.length; i++) {
+    var item = acState.items[i];
+    var cls = i === acState.selectedIndex ? 'ac-item active' : 'ac-item';
+    html += '<div class="' + cls + '" data-idx="' + i + '">' +
+            '<span class="ac-name">${' + escapeHtml(item.name) + '}</span>' +
+            '<span class="ac-type">' + escapeHtml(item.type) + '</span>' +
+            '</div>';
+  }
+  acListEl.innerHTML = html;
+
+  // 鼠标点击
+  var items = acListEl.querySelectorAll('.ac-item');
+  for (var j = 0; j < items.length; j++) {
+    items[j].addEventListener('mousedown', function(e) {
+      e.preventDefault(); // 防止 input 失焦
+      var idx = parseInt(this.getAttribute('data-idx'), 10);
+      if (idx >= 0 && idx < acState.items.length) {
+        insertVariable(acState.items[idx].name);
+      }
+    });
+    items[j].addEventListener('mouseenter', function() {
+      var idx = parseInt(this.getAttribute('data-idx'), 10);
+      acState.selectedIndex = idx;
+      renderAutocomplete();
+    });
+  }
+}
+
+function showAutocomplete(input) {
+  acState.visible = true;
+  // 定位到光标附近 — 简单方案：放在 input 下方
+  var rect = input.getBoundingClientRect();
+  acListEl.style.left = rect.left + 'px';
+  acListEl.style.top = (rect.bottom + 2) + 'px';
+  acListEl.style.display = 'block';
+
+  // 滚动到选中项
+  var activeEl = acListEl.querySelector('.ac-item.active');
+  if (activeEl) {
+    activeEl.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function hideAutocomplete() {
+  acState.visible = false;
+  acListEl.style.display = 'none';
+  acState.activeInput = null;
+  acState.selectedIndex = -1;
+  acState.items = [];
+}
 
 function onFormChange(e) {
   var el = e.target;

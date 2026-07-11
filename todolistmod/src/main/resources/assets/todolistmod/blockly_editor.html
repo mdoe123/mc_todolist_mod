@@ -324,8 +324,34 @@
     <block type="print"></block>
     <block type="run"></block>
     <block type="end"></block>
-    <block type="set_var"></block>
-    <block type="if"></block>
+    <block type="set_var">
+      <value name="value">
+        <shadow type="expr_text"><field name="TEXT">0</field></shadow>
+      </value>
+    </block>
+    <block type="if">
+      <value name="cond">
+        <shadow type="expr_text"><field name="TEXT">${counter} &lt; 3</field></shadow>
+      </value>
+    </block>
+  </category>
+  <sep gap="20"></sep>
+  <category name="变量" data-i18n-cat="cat.variables" expanded="false">
+    <block type="game_var"></block>
+    <block type="variables_get"></block>
+    <block type="variables_set"></block>
+  </category>
+  <sep gap="20"></sep>
+  <category name="运算" data-i18n-cat="cat.math" expanded="false">
+    <block type="math_number"></block>
+    <block type="math_arithmetic"></block>
+  </category>
+  <sep gap="20"></sep>
+  <category name="逻辑" data-i18n-cat="cat.logic" expanded="false">
+    <block type="logic_compare"></block>
+    <block type="logic_operation"></block>
+    <block type="logic_negate"></block>
+    <block type="logic_boolean"></block>
   </category>
 </xml>
 
@@ -402,6 +428,9 @@ var I18N = {
     'field.mcVersionMax': '版本上限',
     'cat.steps': '步骤',
     'cat.actions': '动作',
+    'cat.variables': '变量',
+    'cat.math': '运算',
+    'cat.logic': '逻辑',
     'file.steps': '步',
     'block.interactive_task': '交互步骤',
     'block.terminal_task': '终止步骤',
@@ -424,8 +453,12 @@ var I18N = {
     'block.set_value': '值为',
     'block.if': '如果',
     'block.if_target': '跳转到',
+    'block.game_var': '游戏变量',
+    'block.expr_text': '表达式',
     'tooltip.set_var': '设置自定义变量的值（支持表达式，如 ${counter} + 1）',
     'tooltip.if': '条件为 true 时跳转到指定 id，false 时继续（支持表达式，如 ${counter} < 3）',
+    'tooltip.game_var': '选择一个预定义的游戏状态变量',
+    'tooltip.expr_text': '直接输入表达式文本（如 ${player.health} + 1）',
     'msg.if_target_not_found': '条件跳转目标不存在',
     'msg.name_empty': '清单名称(name)不能为空',
     'msg.task_id_dup_prefix': '步骤 id ',
@@ -484,6 +517,9 @@ var I18N = {
     'field.mcVersionMax': 'MC Version Max',
     'cat.steps': 'Steps',
     'cat.actions': 'Actions',
+    'cat.variables': 'Variables',
+    'cat.math': 'Math',
+    'cat.logic': 'Logic',
     'file.steps': 'steps',
     'block.interactive_task': 'Interactive Step',
     'block.terminal_task': 'Terminal Step',
@@ -506,8 +542,12 @@ var I18N = {
     'block.set_value': 'Value',
     'block.if': 'If',
     'block.if_target': 'Jump to',
+    'block.game_var': 'Game Variable',
+    'block.expr_text': 'Expression',
     'tooltip.set_var': 'Set a custom variable value (supports expressions like ${counter} + 1)',
     'tooltip.if': 'Jump to id if condition is true, continue if false (supports expressions like ${counter} < 3)',
+    'tooltip.game_var': 'Select a predefined game state variable',
+    'tooltip.expr_text': 'Enter expression text directly (e.g. ${player.health} + 1)',
     'msg.if_target_not_found': 'If target not found',
     'msg.name_empty': 'Checklist name cannot be empty',
     'msg.task_id_dup_prefix': 'Step id ',
@@ -580,6 +620,8 @@ function applyLang() {
       else if (blk.type === 'end') blk.setTooltip(t('tooltip.end'));
       else if (blk.type === 'set_var') blk.setTooltip(t('tooltip.set_var'));
       else if (blk.type === 'if') blk.setTooltip(t('tooltip.if'));
+      else if (blk.type === 'game_var') blk.setTooltip(t('tooltip.game_var'));
+      else if (blk.type === 'expr_text') blk.setTooltip(t('tooltip.expr_text'));
     });
     workspace.updateToolbox(document.getElementById('toolbox'));
     Blockly.svgResize(workspace);
@@ -698,9 +740,9 @@ Blockly.Blocks['set_var'] = {
     this.appendDummyInput()
         .appendField(t('block.set_var'))
         .appendField(new Blockly.FieldTextInput("counter"), "var");
-    this.appendDummyInput()
-        .appendField(t('block.set_value'))
-        .appendField(new Blockly.FieldTextInput("0"), "value");
+    this.appendValueInput("value")
+        .setCheck(null)
+        .appendField(t('block.set_value'));
     this.setPreviousStatement(true);
     this.setNextStatement(true);
     this.setColour("#06B6D4");
@@ -711,9 +753,9 @@ Blockly.Blocks['set_var'] = {
 // 条件跳转（绿色）
 Blockly.Blocks['if'] = {
   init: function () {
-    this.appendDummyInput()
-        .appendField(t('block.if'))
-        .appendField(new Blockly.FieldTextInput("${counter} < 3"), "cond");
+    this.appendValueInput("cond")
+        .setCheck(null)
+        .appendField(t('block.if'));
     this.appendDummyInput()
         .appendField(t('block.if_target'))
         .appendField(new Blockly.FieldNumber(1), "id");
@@ -721,6 +763,52 @@ Blockly.Blocks['if'] = {
     this.setNextStatement(true);
     this.setColour("#10B981");
     this.setTooltip(t('tooltip.if'));
+  }
+};
+
+// 游戏状态变量（紫色）：下拉选择预定义的游戏变量
+Blockly.Blocks['game_var'] = {
+  init: function () {
+    var dropdown = new Blockly.FieldDropdown([
+      ["player.health", "player.health"],
+      ["player.max_health", "player.max_health"],
+      ["player.hunger", "player.hunger"],
+      ["player.saturation", "player.saturation"],
+      ["player.armor", "player.armor"],
+      ["player.x", "player.x"],
+      ["player.y", "player.y"],
+      ["player.z", "player.z"],
+      ["player.xp_level", "player.xp_level"],
+      ["player.gamemode", "player.gamemode"],
+      ["player.sneaking", "player.sneaking"],
+      ["player.sprinting", "player.sprinting"],
+      ["player.on_ground", "player.on_ground"],
+      ["player.in_water", "player.in_water"],
+      ["player.dimension", "player.dimension"],
+      ["world.time", "world.time"],
+      ["world.day", "world.day"],
+      ["world.weather", "world.weather"],
+      ["world.difficulty", "world.difficulty"],
+      ["world.fps", "world.fps"]
+    ]);
+    this.appendDummyInput()
+        .appendField(t('block.game_var'))
+        .appendField(dropdown, "VAR");
+    this.setOutput(true, null);
+    this.setColour("#8B5CF6");
+    this.setTooltip(t('tooltip.game_var'));
+  }
+};
+
+// 表达式文本（灰色）：直接输入表达式字符串，作为值输入的影子块
+Blockly.Blocks['expr_text'] = {
+  init: function () {
+    this.appendDummyInput()
+        .appendField(t('block.expr_text'))
+        .appendField(new Blockly.FieldTextInput(""), "TEXT");
+    this.setOutput(true, null);
+    this.setColour("#9CA3AF");
+    this.setTooltip(t('tooltip.expr_text'));
   }
 };
 
@@ -870,11 +958,55 @@ function actionBlockToJson(block) {
     if (msg) { o.message = msg; }
     return o;
   } else if (block.type === 'set_var') {
-    return { type: 'set', var: block.getFieldValue('var') || "", value: block.getFieldValue('value') || "" };
+    return { type: 'set', var: block.getFieldValue('var') || "", value: blockToExpr(block.getInputTargetBlock('value')) };
   } else if (block.type === 'if') {
-    return { type: 'if', cond: block.getFieldValue('cond') || "", id: parseInt(block.getFieldValue('id'), 10) || 0 };
+    return { type: 'if', cond: blockToExpr(block.getInputTargetBlock('cond')), id: parseInt(block.getFieldValue('id'), 10) || 0 };
   }
   return { type: block.type };
+}
+
+/* 将值输入连接的块递归转换为表达式字符串。
+ * 支持 game_var / expr_text / math_number / math_arithmetic /
+ *      logic_compare / logic_operation / logic_negate / logic_boolean /
+ *      variables_get / text。无法识别的块返回空字符串。 */
+function blockToExpr(block) {
+  if (!block) return "";
+  switch (block.type) {
+    case 'game_var':
+      return '${' + (block.getFieldValue('VAR') || '') + '}';
+    case 'expr_text':
+      return block.getFieldValue('TEXT') || '';
+    case 'math_number':
+      return String(block.getFieldValue('NUM') || '0');
+    case 'math_arithmetic':
+      var aOp = block.getFieldValue('OP');
+      var aA = blockToExpr(block.getInputTargetBlock('A'));
+      var aB = blockToExpr(block.getInputTargetBlock('B'));
+      var aSym = { ADD: '+', MINUS: '-', MULTIPLY: '*', DIVIDE: '/', POWER: '^' }[aOp] || '+';
+      return '(' + aA + ' ' + aSym + ' ' + aB + ')';
+    case 'logic_compare':
+      var cOp = block.getFieldValue('OP');
+      var cA = blockToExpr(block.getInputTargetBlock('A'));
+      var cB = blockToExpr(block.getInputTargetBlock('B'));
+      var cSym = { EQ: '==', NEQ: '!=', LT: '<', LTE: '<=', GT: '>', GTE: '>=' }[cOp] || '==';
+      return cA + ' ' + cSym + ' ' + cB;
+    case 'logic_operation':
+      var oOp = block.getFieldValue('OP');
+      var oA = blockToExpr(block.getInputTargetBlock('A'));
+      var oB = blockToExpr(block.getInputTargetBlock('B'));
+      return oA + ' ' + (oOp === 'AND' ? '&&' : '||') + ' ' + oB;
+    case 'logic_negate':
+      var nA = blockToExpr(block.getInputTargetBlock('BOOL'));
+      return '!' + nA;
+    case 'logic_boolean':
+      return block.getFieldValue('BOOL') === 'TRUE' ? 'true' : 'false';
+    case 'variables_get':
+      return '${' + (block.getFieldValue('VAR') || '') + '}';
+    case 'text':
+      return '"' + (block.getFieldValue('TEXT') || '') + '"';
+    default:
+      return '';
+  }
 }
 
 /* ============================================================
@@ -949,9 +1081,19 @@ function createActionBlock(action) {
     b.setFieldValue(action.message || "", 'message');
   } else if (type === 'set') {
     b.setFieldValue(action.var || "", 'var');
-    b.setFieldValue(action.value || "", 'value');
+    // 为 value 输入创建 expr_text 子块承载已有表达式字符串
+    var valBlock = workspace.newBlock('expr_text');
+    valBlock.setFieldValue(action.value || "", 'TEXT');
+    valBlock.initSvg();
+    valBlock.render();
+    b.getInput('value').connection.connect(valBlock.outputConnection);
   } else if (type === 'if') {
-    b.setFieldValue(action.cond || "", 'cond');
+    // 为 cond 输入创建 expr_text 子块承载已有条件字符串
+    var condBlock = workspace.newBlock('expr_text');
+    condBlock.setFieldValue(action.cond || "", 'TEXT');
+    condBlock.initSvg();
+    condBlock.render();
+    b.getInput('cond').connection.connect(condBlock.outputConnection);
     b.setFieldValue(String(action.id != null ? action.id : 1), 'id');
   }
   b.initSvg();
