@@ -158,6 +158,7 @@ public final class ChecklistEditorServer {
         var headers = exchange.getResponseHeaders();
         headers.set("X-Content-Type-Options", "nosniff");
         headers.set("X-Frame-Options", "DENY");
+        headers.set("Referrer-Policy", "no-referrer");
         if (nonce != null) {
             headers.set("Content-Security-Policy",
                     "default-src 'self'; script-src 'self' 'nonce-" + nonce + "'; style-src 'self' 'nonce-" + nonce + "'");

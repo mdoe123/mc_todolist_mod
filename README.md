@@ -30,8 +30,8 @@ cd todolistmod && gradlew.bat build
 
 构建产物在 `todolistmod/build/libs/`：
 
-- `todolistmod-1.4.5.jar` —— 这就是要放进 `mods` 文件夹的模组文件
-- `todolistmod-1.4.5-sources.jar` —— 源码包（可选）
+- `todolistmod-1.4.6.jar` —— 这就是要放进 `mods` 文件夹的模组文件
+- `todolistmod-1.4.6-sources.jar` —— 源码包（可选）
 
 > 首次构建会自动下载 Minecraft、Yarn 映射和依赖，耗时较长，属正常现象。
 > 若 `services.gradle.org` 下载 Gradle 本体很慢，可把 `gradle/wrapper/gradle-wrapper.properties`
@@ -41,7 +41,7 @@ cd todolistmod && gradlew.bat build
 ## 安装
 
 1. 确保已安装 Fabric Loader 和 Fabric API（选择与你当前 Minecraft 1.21.x 版本对应的 Fabric API）。
-2. 把 `todolistmod-1.4.5.jar` 放进 `.minecraft/mods/`。
+2. 把 `todolistmod-1.4.6.jar` 放进 `.minecraft/mods/`。
 3. 启动游戏。首次进入世界时，模组会在**游戏根目录**生成 `todolist` 文件夹；若配置项 `generateExample` 为 `true`（默认），还会写入一个 `example.json` 示例清单。
 
 ## 配置文件
@@ -303,6 +303,13 @@ cd todolistmod && gradlew.bat build
 > **注意**：清单 JSON 文件内的用户内容（`print` 动作的 `text`、`end` 动作的 `message`、清单 `name`、步骤 `desc`、按钮 `trueText`/`falseText`）属于用户数据，**不会被翻译**，按原样输出。
 
 ## 更新历史
+
+### v1.4.6 — 遗留安全与防御性修复（P2-遗留 + P1-遗留）
+
+- **P2-遗留-2** `ChecklistEditorServer`：缺少 `Referrer-Policy` 响应头。新增 `Referrer-Policy: no-referrer`，纵深防御残余信息通过 Referer 头泄露。
+- **P2-遗留-3** `editor.html`：`f.taskCount` 未经 `escapeHtml()` 包裹。虽然后端返回 int 类型安全，但按防御性编程统一包裹。
+- **P2-遗留-4** `editor.html` + `blockly_editor.html`：输入字段未设置 `maxlength` 属性。按字段类型添加合理上限（清单名 100、描述 2000、命令 256、版本 20、变量名 64 等），数字字段添加 `max` 属性，防止意外粘贴超大内容。
+- **P1-遗留-1** `TodoListCommand`：`runClick` lambda 未重新校验执行器，与 `runChoose`/`runBack` 的 P1-C2 修复不一致。将 `containsValue` 检查移入 lambda，`remove(checklist.name)` 改为 `entrySet().removeIf(e -> e.getValue() == exec)` 按引用条件删除。
 
 ### v1.4.5 — 健壮性与并发修复（P1-P + P1-C）
 

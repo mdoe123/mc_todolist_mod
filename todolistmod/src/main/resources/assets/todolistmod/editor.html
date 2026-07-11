@@ -321,20 +321,20 @@
         </div>
         <div class="row">
           <label class="field grow"><span>name</span>
-            <input type="text" id="f-name" data-field="name" class="grow" placeholder="清单名称" data-i18n-placeholder="placeholder.name">
+            <input type="text" id="f-name" data-field="name" class="grow" maxlength="100" placeholder="清单名称" data-i18n-placeholder="placeholder.name">
           </label>
         </div>
         <div class="row block">
           <label><span data-i18n="field.description">介绍</span>
-            <textarea id="f-description" data-field="description" rows="3" placeholder="清单用途说明（可选，多行）" data-i18n-placeholder="placeholder.description"></textarea>
+            <textarea id="f-description" data-field="description" rows="3" maxlength="2000" placeholder="清单用途说明（可选，多行）" data-i18n-placeholder="placeholder.description"></textarea>
           </label>
         </div>
         <div class="row">
           <label class="field grow"><span data-i18n="field.mcVersionMin">MC 版本下限</span>
-            <input type="text" id="f-mcversionmin" data-field="mcVersionMin" class="grow" placeholder="如 1.21（留空表示无限制）" data-i18n-placeholder="placeholder.mcVersionMin">
+            <input type="text" id="f-mcversionmin" data-field="mcVersionMin" class="grow" maxlength="20" placeholder="如 1.21（留空表示无限制）" data-i18n-placeholder="placeholder.mcVersionMin">
           </label>
           <label class="field grow"><span data-i18n="field.mcVersionMax">MC 版本上限</span>
-            <input type="text" id="f-mcversionmax" data-field="mcVersionMax" class="grow" placeholder="如 1.21.1（留空表示无限制）" data-i18n-placeholder="placeholder.mcVersionMax">
+            <input type="text" id="f-mcversionmax" data-field="mcVersionMax" class="grow" maxlength="20" placeholder="如 1.21.1（留空表示无限制）" data-i18n-placeholder="placeholder.mcVersionMax">
           </label>
         </div>
         <div class="row">
@@ -342,7 +342,7 @@
             <input type="text" value="flow" readonly style="width:90px">
           </label>
           <label class="field"><span>maxSteps</span>
-            <input type="number" id="f-maxsteps" data-field="maxSteps" class="compact" placeholder="0=不限" data-i18n-placeholder="placeholder.maxsteps">
+            <input type="number" id="f-maxsteps" data-field="maxSteps" class="compact" max="10000" placeholder="0=不限" data-i18n-placeholder="placeholder.maxsteps">
           </label>
         </div>
       </div>
@@ -793,9 +793,9 @@ function renderTask(task, ti) {
     ? '<div class="empty-hint">' + escapeHtml(t('hint.terminal')) + '</div>'
     : '<div class="row">' +
         '<label class="field grow"><span>trueText</span>' +
-          '<input type="text" data-field="trueText" data-ti="' + ti + '" class="grow" value="' + escapeAttr(task.trueText) + '"></label>' +
+          '<input type="text" data-field="trueText" data-ti="' + ti + '" class="grow" maxlength="50" value="' + escapeAttr(task.trueText) + '"></label>' +
         '<label class="field grow"><span>falseText</span>' +
-          '<input type="text" data-field="falseText" data-ti="' + ti + '" class="grow" value="' + escapeAttr(task.falseText) + '"></label>' +
+          '<input type="text" data-field="falseText" data-ti="' + ti + '" class="grow" maxlength="50" value="' + escapeAttr(task.falseText) + '"></label>' +
       '</div>';
 
   return '' +
@@ -803,11 +803,11 @@ function renderTask(task, ti) {
     '<div class="card-head">' +
       '<div class="left"><span class="card-title">' + escapeHtml(t('task.label')) + (ti + 1) + '</span>' +
         '<label class="field"><span>id</span>' +
-          '<input type="number" data-field="id" data-ti="' + ti + '" class="compact" value="' + escapeAttr(task.id) + '"></label></div>' +
+          '<input type="number" data-field="id" data-ti="' + ti + '" class="compact" max="999999" value="' + escapeAttr(task.id) + '"></label></div>' +
       '<button class="danger" data-action="del-task" data-ti="' + ti + '">' + escapeHtml(t('btn.del_task')) + '</button>' +
     '</div>' +
     '<div class="row block"><label><span>desc</span>' +
-      '<textarea data-field="desc" data-ti="' + ti + '" rows="2">' + escapeHtml(task.desc) + '</textarea></label></div>' +
+      '<textarea data-field="desc" data-ti="' + ti + '" rows="2" maxlength="500">' + escapeHtml(task.desc) + '</textarea></label></div>' +
     '<div class="row">' +
       '<label class="field"><input type="checkbox" data-field="isTerminal" data-ti="' + ti + '"' + (task.isTerminal ? ' checked' : '') + '>' +
         '<span style="min-width:auto">' + escapeHtml(t('hint.terminal_label')) + '</span></label>' +
@@ -834,26 +834,26 @@ function renderAction(ti, branch, ai, a) {
   var fieldHtml;
   if (a.type === "jumpto") {
     fieldHtml = '<label class="field"><span>id</span>' +
-      '<input type="number" data-field="aid" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="compact" value="' + escapeAttr(a.id) + '"></label>';
+      '<input type="number" data-field="aid" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="compact" max="999999" value="' + escapeAttr(a.id) + '"></label>';
   } else if (a.type === "print") {
     fieldHtml = '<label class="field grow"><span>text</span>' +
-      '<input type="text" data-field="atext" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="grow" value="' + escapeAttr(a.text) + '"></label>';
+      '<input type="text" data-field="atext" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="grow" maxlength="1000" value="' + escapeAttr(a.text) + '"></label>';
   } else if (a.type === "run") {
     fieldHtml = '<label class="field grow"><span>command</span>' +
-      '<input type="text" data-field="acommand" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="grow" value="' + escapeAttr(a.command) + '"></label>';
+      '<input type="text" data-field="acommand" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="grow" maxlength="256" value="' + escapeAttr(a.command) + '"></label>';
   } else if (a.type === "end") {
     fieldHtml = '<label class="field grow"><span>message</span>' +
-      '<input type="text" data-field="amessage" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="grow" value="' + escapeAttr(a.message) + '" placeholder="' + escapeAttr(t('placeholder.message')) + '"></label>';
+      '<input type="text" data-field="amessage" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="grow" maxlength="500" value="' + escapeAttr(a.message) + '" placeholder="' + escapeAttr(t('placeholder.message')) + '"></label>';
   } else if (a.type === "set") {
     fieldHtml = '<label class="field grow"><span>' + escapeHtml(t('field.var_name')) + '</span>' +
-      '<input type="text" data-field="avar" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="grow" value="' + escapeAttr(a.var) + '" placeholder="counter"></label>' +
+      '<input type="text" data-field="avar" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="grow" maxlength="64" value="' + escapeAttr(a.var) + '" placeholder="counter"></label>' +
       '<label class="field grow"><span>' + escapeHtml(t('field.var_value')) + '</span>' +
-      '<input type="text" data-field="avalue" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="grow" value="' + escapeAttr(a.value) + '" placeholder="0"></label>';
+      '<input type="text" data-field="avalue" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="grow" maxlength="256" value="' + escapeAttr(a.value) + '" placeholder="0"></label>';
   } else if (a.type === "if") {
     fieldHtml = '<label class="field grow"><span>' + escapeHtml(t('field.condition')) + '</span>' +
-      '<input type="text" data-field="acond" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="grow" value="' + escapeAttr(a.cond) + '" placeholder="${counter} < 3"></label>' +
+      '<input type="text" data-field="acond" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="grow" maxlength="256" value="' + escapeAttr(a.cond) + '" placeholder="${counter} < 3"></label>' +
       '<label class="field"><span>' + escapeHtml(t('field.target_id')) + '</span>' +
-      '<input type="number" data-field="aid" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="compact" value="' + escapeAttr(a.id != null ? a.id : 1) + '"></label>';
+      '<input type="number" data-field="aid" data-ti="' + ti + '" data-branch="' + branch + '" data-ai="' + ai + '" class="compact" max="999999" value="' + escapeAttr(a.id != null ? a.id : 1) + '"></label>';
   } else {
     fieldHtml = '<span class="empty-hint">' + escapeHtml(t('hint.unknown_action')) + '</span>';
   }
@@ -1202,7 +1202,7 @@ async function refreshList() {
   for (var i = 0; i < files.length; i++) {
     var f = files[i];
     opts += '<option value="' + escapeAttr(f.file) + '">' +
-            escapeHtml(f.file) + ' · ' + escapeHtml(f.name) + ' (' + f.taskCount + ')</option>';
+            escapeHtml(f.file) + ' · ' + escapeHtml(f.name) + ' (' + escapeHtml(f.taskCount) + ')</option>';
   }
   fileSelect.innerHTML = opts;
   return files;

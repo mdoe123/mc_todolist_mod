@@ -369,16 +369,16 @@ public class TodoListCommand {
             return 0;
         }
         final ChecklistExecutor exec = pc.executor;
-        if (!RUNNING.containsValue(exec)) {
-            return 0;
-        }
         final int taskId = pc.taskId;
         final boolean choice = pc.choice;
         MinecraftClient client = ctx.getSource().getClient();
         client.execute(() -> {
+            // 重新校验执行器仍在 RUNNING 中，防止 end 命令在 lambda 执行前移除
+            if (!RUNNING.containsValue(exec)) return;
             exec.choose(taskId, choice);
             if (exec.isFinished()) {
-                RUNNING.remove(exec.getChecklist().name);
+                // 遍历查找实际 key 后条件删除，避免 key 不匹配导致删除失败
+                RUNNING.entrySet().removeIf(e -> e.getValue() == exec);
             }
         });
         return 1;

@@ -282,17 +282,17 @@
     <div class="sep"></div>
     <div class="group">
       <label class="field"><span>name</span>
-        <input type="text" id="f-name" placeholder="清单名称" style="width:150px" data-i18n-placeholder="placeholder.name"></label>
+        <input type="text" id="f-name" maxlength="100" placeholder="清单名称" style="width:150px" data-i18n-placeholder="placeholder.name"></label>
       <label class="field"><span>type</span>
         <input type="text" value="flow" readonly style="width:70px"></label>
       <label class="field"><span>maxSteps</span>
-        <input type="number" id="f-maxsteps" class="compact" placeholder="0=不限" data-i18n-placeholder="placeholder.maxsteps"></label>
+        <input type="number" id="f-maxsteps" class="compact" max="10000" placeholder="0=不限" data-i18n-placeholder="placeholder.maxsteps"></label>
       <label class="field"><span data-i18n="field.description">介绍</span>
-        <textarea id="f-description" rows="1" placeholder="清单用途说明" style="width:180px" data-i18n-placeholder="placeholder.description"></textarea></label>
+        <textarea id="f-description" rows="1" maxlength="2000" placeholder="清单用途说明" style="width:180px" data-i18n-placeholder="placeholder.description"></textarea></label>
       <label class="field"><span data-i18n="field.mcVersionMin">版本下限</span>
-        <input type="text" id="f-mcversionmin" placeholder="如 1.21" style="width:80px" data-i18n-placeholder="placeholder.mcVersionMin"></label>
+        <input type="text" id="f-mcversionmin" maxlength="20" placeholder="如 1.21" style="width:80px" data-i18n-placeholder="placeholder.mcVersionMin"></label>
       <label class="field"><span data-i18n="field.mcVersionMax">版本上限</span>
-        <input type="text" id="f-mcversionmax" placeholder="如 1.21.1" style="width:80px" data-i18n-placeholder="placeholder.mcVersionMax"></label>
+        <input type="text" id="f-mcversionmax" maxlength="20" placeholder="如 1.21.1" style="width:80px" data-i18n-placeholder="placeholder.mcVersionMax"></label>
     </div>
     <div class="spacer"></div>
     <div class="group">
