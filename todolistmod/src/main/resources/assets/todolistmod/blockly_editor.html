@@ -79,9 +79,10 @@
     padding: 8px 12px;
     border-bottom: 1px solid var(--border);
     background: var(--bg);
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow: hidden;
   }
-  #toolbar .group { display: flex; align-items: center; gap: 6px; }
+  #toolbar .group { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
   #toolbar .sep {
     width: 1px;
     height: 22px;
@@ -199,6 +200,46 @@
     flex: 1 1 auto;
     overflow: auto;
     padding: 6px;
+    min-height: 60px;
+  }
+  /* 侧栏元数据面板（清单属性编辑） */
+  #metaPane {
+    flex: 0 0 auto;
+    max-height: 45%;
+    overflow: auto;
+    padding: 8px 10px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  #metaPane .meta-head {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+  }
+  #metaPane label.field {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #metaPane label.field > span {
+    color: var(--muted);
+    white-space: nowrap;
+    min-width: 56px;
+  }
+  #metaPane input[type="text"],
+  #metaPane input[type="number"],
+  #metaPane textarea {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+  }
+  #metaPane textarea {
+    resize: none;
   }
   .file-item {
     display: flex;
@@ -230,6 +271,7 @@
     flex: 1 1 auto;
     position: relative;
     min-width: 0;
+    overflow: hidden;
   }
   #blockly-container .blocklyToolboxDiv {
     background: var(--card-bg);
@@ -242,6 +284,7 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    z-index: 1;
     color: var(--muted);
     font-size: 13px;
     pointer-events: none;
@@ -280,20 +323,6 @@
       </button>
     </div>
     <div class="sep"></div>
-    <div class="group">
-      <label class="field"><span>name</span>
-        <input type="text" id="f-name" maxlength="100" placeholder="清单名称" style="width:150px" data-i18n-placeholder="placeholder.name"></label>
-      <label class="field"><span>type</span>
-        <input type="text" value="flow" readonly style="width:70px"></label>
-      <label class="field"><span>maxSteps</span>
-        <input type="number" id="f-maxsteps" class="compact" max="10000" placeholder="0=不限" data-i18n-placeholder="placeholder.maxsteps"></label>
-      <label class="field"><span data-i18n="field.description">介绍</span>
-        <textarea id="f-description" rows="1" maxlength="2000" placeholder="清单用途说明" style="width:180px" data-i18n-placeholder="placeholder.description"></textarea></label>
-      <label class="field"><span data-i18n="field.mcVersionMin">版本下限</span>
-        <input type="text" id="f-mcversionmin" maxlength="20" placeholder="如 1.21" style="width:80px" data-i18n-placeholder="placeholder.mcVersionMin"></label>
-      <label class="field"><span data-i18n="field.mcVersionMax">版本上限</span>
-        <input type="text" id="f-mcversionmax" maxlength="20" placeholder="如 1.21.1" style="width:80px" data-i18n-placeholder="placeholder.mcVersionMax"></label>
-    </div>
     <div class="spacer"></div>
     <div class="group">
       <button id="themeBtn" title="切换浅色/深色/跟随系统" data-i18n-title="tooltip.theme">☀/☾</button>
@@ -306,6 +335,21 @@
     <div id="sidebar">
       <div class="sidebar-head" data-i18n="sidebar.files">文件列表</div>
       <div id="fileList"></div>
+      <div id="metaPane">
+        <div class="meta-head" data-i18n="sidebar.meta">清单属性</div>
+        <label class="field"><span>name</span>
+          <input type="text" id="f-name" maxlength="100" placeholder="清单名称" data-i18n-placeholder="placeholder.name"></label>
+        <label class="field"><span>type</span>
+          <input type="text" value="flow" readonly style="width:70px"></label>
+        <label class="field"><span>maxSteps</span>
+          <input type="number" id="f-maxsteps" max="10000" placeholder="0=不限" data-i18n-placeholder="placeholder.maxsteps"></label>
+        <label class="field"><span data-i18n="field.description">介绍</span>
+          <textarea id="f-description" rows="2" maxlength="2000" placeholder="清单用途说明" data-i18n-placeholder="placeholder.description"></textarea></label>
+        <label class="field"><span data-i18n="field.mcVersionMin">版本下限</span>
+          <input type="text" id="f-mcversionmin" maxlength="20" placeholder="如 1.21" data-i18n-placeholder="placeholder.mcVersionMin"></label>
+        <label class="field"><span data-i18n="field.mcVersionMax">版本上限</span>
+          <input type="text" id="f-mcversionmax" maxlength="20" placeholder="如 1.21.1" data-i18n-placeholder="placeholder.mcVersionMax"></label>
+      </div>
     </div>
     <div id="blockly-container">
       <div id="workspace-hint" data-i18n="hint.workspace">从左侧选择或新建一个清单开始编辑</div>
@@ -419,6 +463,7 @@ var I18N = {
     'mode.form': '表单',
     'mode.block': '块',
     'sidebar.files': '文件列表',
+    'sidebar.meta': '清单属性',
     'hint.workspace': '从左侧选择或新建一个清单开始编辑',
     'hint.no_files': '暂无文件，点击「新建」创建',
     'hint.empty_dir': 'todolist 目录为空，点击「新建」创建清单',
@@ -509,6 +554,7 @@ var I18N = {
     'mode.form': 'Form',
     'mode.block': 'Blocks',
     'sidebar.files': 'File List',
+    'sidebar.meta': 'Checklist Properties',
     'hint.workspace': 'Select or create a checklist from the left to start editing',
     'hint.no_files': 'No files. Click "New" to create one',
     'hint.empty_dir': 'todolist directory is empty. Click "New" to create a checklist.',
