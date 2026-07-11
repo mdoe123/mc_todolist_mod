@@ -75,12 +75,13 @@ public final class ChecklistEditorServer {
         return secretToken;
     }
 
-    /** 停止服务器（可选调用）。 */
+    /** 停止服务器并清理密钥（可选调用）。 */
     public static synchronized void stop() {
         if (server != null) {
             server.stop(0);
             server = null;
             port = 0;
+            secretToken = null;
         }
     }
 

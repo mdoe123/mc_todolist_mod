@@ -63,6 +63,8 @@ public class TodoListCommand {
                                     .executes(ctx -> runChoose(ctx, false))))
                     .then(ClientCommandManager.literal("edit")
                             .executes(TodoListCommand::runEditNoName)
+                            .then(ClientCommandManager.literal("end")
+                                    .executes(TodoListCommand::runEditEnd))
                             .then(ClientCommandManager.argument("name", StringArgumentType.greedyString())
                                     .suggests(ChecklistSuggestionProvider.INSTANCE)
                                     .executes(TodoListCommand::runEdit)))
@@ -309,6 +311,19 @@ public class TodoListCommand {
             src.sendFeedback(Text.translatable("todolist.edit.not_found", name).formatted(Formatting.YELLOW));
         }
         sendClickableUrl(src, url);
+        return 1;
+    }
+
+    /**
+     * /todolist edit end：关闭编辑器后端。
+     *
+     * @param ctx 命令上下文
+     * @return 固定返回 1
+     */
+    private static int runEditEnd(CommandContext<FabricClientCommandSource> ctx) {
+        FabricClientCommandSource src = ctx.getSource();
+        ChecklistEditorServer.stop();
+        src.sendFeedback(Text.translatable("todolist.edit.stopped").formatted(Formatting.AQUA));
         return 1;
     }
 

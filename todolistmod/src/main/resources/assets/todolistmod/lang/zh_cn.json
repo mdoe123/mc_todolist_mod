@@ -16,6 +16,7 @@
   "todolist.edit.file_path": "清单文件路径: %s",
   "todolist.edit.not_found": "未找到清单: %s，已打开编辑器",
   "todolist.edit.click_to_open": "→ 点击打开编辑器",
+  "todolist.edit.stopped": "编辑器后端已关闭。",
   "todolist.exec.empty": "清单为空，无法执行。",
   "todolist.exec.completed": "（清单已完成）",
   "todolist.exec.finished": "该清单已结束。",
