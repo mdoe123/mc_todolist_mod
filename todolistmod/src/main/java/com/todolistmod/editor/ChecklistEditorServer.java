@@ -31,6 +31,8 @@ public final class ChecklistEditorServer {
     private static int port;
     /** 一次性启动密钥：所有 /api/* 请求必须携带此密钥，防 CSRF 与 DNS Rebinding */
     private static String secretToken;
+    /** 线程池执行器，替代默认单线程串行执行，避免慢请求阻塞 */
+    private static java.util.concurrent.ExecutorService executor;
 
     /** 新建清单时的默认模板（与 example.json 结构一致的最小空清单）。 */
     private static final String DEFAULT_TEMPLATE =
@@ -53,7 +55,9 @@ public final class ChecklistEditorServer {
             secretToken = java.util.HexFormat.of().formatHex(bytes);
             HttpServer s = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
             s.createContext("/", new EditorHandler());
-            s.setExecutor(null);
+            // 使用固定线程池（4 线程）替代默认单线程串行执行，避免慢请求阻塞所有请求
+            executor = java.util.concurrent.Executors.newFixedThreadPool(4);
+            s.setExecutor(executor);
             s.start();
             server = s;
             port = s.getAddress().getPort();
@@ -82,6 +86,10 @@ public final class ChecklistEditorServer {
             server = null;
             port = 0;
             secretToken = null;
+        }
+        if (executor != null) {
+            executor.shutdown();
+            executor = null;
         }
     }
 

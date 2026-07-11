@@ -150,11 +150,6 @@ public class TodoListCommand {
     private static int runDo(CommandContext<FabricClientCommandSource> ctx) {
         FabricClientCommandSource src = ctx.getSource();
         String name = StringArgumentType.getString(ctx, "name");
-        if (RUNNING.containsKey(name)) {
-            src.sendFeedback(Text.translatable("todolist.do.already_running", name, name)
-                    .formatted(Formatting.YELLOW));
-            return 0;
-        }
         Entry entry = ChecklistStore.find(name);
         if (entry == null) {
             src.sendFeedback(Text.translatable("todolist.do.not_found", name)
@@ -162,12 +157,17 @@ public class TodoListCommand {
             return 0;
         }
         ChecklistExecutor exec = new ChecklistExecutor(entry.checklist);
-        RUNNING.put(name, exec);
+        // 原子插入：若已存在同名执行器则 putIfAbsent 返回旧值，避免 TOCTOU 竞态
+        if (RUNNING.putIfAbsent(name, exec) != null) {
+            src.sendFeedback(Text.translatable("todolist.do.already_running", name, name)
+                    .formatted(Formatting.YELLOW));
+            return 0;
+        }
         MinecraftClient client = src.getClient();
         client.execute(() -> {
             exec.start();
             if (exec.isFinished()) {
-                RUNNING.remove(name);
+                RUNNING.remove(name, exec);
             }
         });
         return 1;
@@ -208,9 +208,11 @@ public class TodoListCommand {
         }
         MinecraftClient client = src.getClient();
         client.execute(() -> {
+            // 重新校验执行器仍在 RUNNING 中，防止 end 命令在 lambda 执行前移除
+            if (RUNNING.get(name) != exec) return;
             exec.back();
             if (exec.isFinished()) {
-                RUNNING.remove(name);
+                RUNNING.remove(name, exec);
             }
         });
         return 1;
@@ -239,9 +241,11 @@ public class TodoListCommand {
         final ChecklistExecutor exec = entry.getValue();
         MinecraftClient client = src.getClient();
         client.execute(() -> {
+            // 重新校验执行器仍在 RUNNING 中，防止 end 命令在 lambda 执行前移除
+            if (RUNNING.get(name) != exec) return;
             exec.chooseCurrent(choice);
             if (exec.isFinished()) {
-                RUNNING.remove(name);
+                RUNNING.remove(name, exec);
             }
         });
         return 1;
@@ -264,9 +268,11 @@ public class TodoListCommand {
         }
         MinecraftClient client = src.getClient();
         client.execute(() -> {
+            // 重新校验执行器仍在 RUNNING 中，防止 end 命令在 lambda 执行前移除
+            if (RUNNING.get(name) != exec) return;
             exec.chooseCurrent(choice);
             if (exec.isFinished()) {
-                RUNNING.remove(name);
+                RUNNING.remove(name, exec);
             }
         });
         return 1;

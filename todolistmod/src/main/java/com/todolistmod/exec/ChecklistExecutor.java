@@ -14,9 +14,9 @@ import net.minecraft.util.Formatting;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.Deque;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 单份清单的执行引擎：维护当前步骤、步数计数，并按顺序执行动作。
@@ -34,8 +34,8 @@ public class ChecklistExecutor {
     private boolean pendingVersionConfirm = false;
     /** 步骤历史栈：每次 jumpto 跳转前压入离开的步骤，back() 弹出回到上一步 */
     private final Deque<ChecklistTask> stepHistory = new ArrayDeque<>();
-    /** 自定义变量存储（set 动作写入，表达式/print/run 读取） */
-    private final Map<String, Object> variables = new HashMap<>();
+    /** 自定义变量存储（set 动作写入，表达式/print/run 读取。ConcurrentHashMap 保证线程安全） */
+    private final Map<String, Object> variables = new ConcurrentHashMap<>();
     /** 待确认的高危命令（非 null 表示正在等待玩家确认高危指令） */
     private String pendingDangerousCommand;
     /** 高危确认时保存的剩余动作列表 */

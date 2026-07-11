@@ -20,8 +20,8 @@ public class ModConfig {
     public static final Logger LOGGER = LoggerFactory.getLogger("ChatTodolist");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    /** 加载后的配置实例 */
-    public static ModConfig INSTANCE;
+    /** 加载后的配置实例（volatile 保证多线程可见性） */
+    public static volatile ModConfig INSTANCE;
 
     /** 是否在 todolist 目录生成示例清单 */
     public boolean generateExample = true;
@@ -67,6 +67,10 @@ public class ModConfig {
         // Gson 对基本类型 int 不会为 null，但 String 可能为 null
         if (language == null) language = "system";
         if (dangerousCommands == null) dangerousCommands = new ArrayList<>();
+        // 校验配置范围，非法值回退默认
+        if (editorPort < 0 || editorPort > 65535) editorPort = 0;
+        if (maxStepsLimit < 1) maxStepsLimit = 100;
+        if (maxStepsLimit > 10000) maxStepsLimit = 10000;
     }
 
     /** 保存配置到文件 */

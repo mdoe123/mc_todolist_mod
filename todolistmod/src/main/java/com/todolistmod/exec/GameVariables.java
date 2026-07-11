@@ -45,7 +45,7 @@ public class GameVariables {
             case "player.in_water": return player.isTouchingWater();
             case "player.dimension": return world.getRegistryKey().getValue().toString();
             case "world.time": return (int) (world.getTimeOfDay() % 24000);
-            case "world.day": return (int) (world.getTime() / 24000);
+            case "world.day": return world.getTime() / 24000;  // 返回 long，避免 int 溢出
             case "world.weather":
                 if (world.isThundering()) return "thunder";
                 if (world.isRaining()) return "rain";

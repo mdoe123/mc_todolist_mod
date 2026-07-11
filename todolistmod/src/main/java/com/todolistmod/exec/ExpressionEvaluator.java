@@ -25,6 +25,8 @@ public class ExpressionEvaluator {
     private final Map<String, Object> variables;
     private List<Token> tokens;
     private int pos;
+    /** 短路求值标志：为 true 时跳过变量查找等副作用，仅消费 token */
+    private boolean noEval = false;
 
     public ExpressionEvaluator(Map<String, Object> customVars) {
         this.variables = customVars;
@@ -111,12 +113,31 @@ public class ExpressionEvaluator {
                 i = end + 1;
                 continue;
             }
-            // String literal
+            // String literal (支持 \" \\ \n \t 转义)
             if (c == '"') {
-                int end = expr.indexOf('"', i + 1);
-                if (end == -1) throw new RuntimeException("未闭合的字符串");
-                tokens.add(new Token(TokenType.STRING, expr.substring(i + 1, end)));
-                i = end + 1;
+                i++; // 跳过开引号
+                StringBuilder sb = new StringBuilder();
+                while (i < expr.length()) {
+                    char ch = expr.charAt(i);
+                    if (ch == '\\' && i + 1 < expr.length()) {
+                        char nextCh = expr.charAt(i + 1);
+                        switch (nextCh) {
+                            case '"': sb.append('"'); break;
+                            case '\\': sb.append('\\'); break;
+                            case 'n': sb.append('\n'); break;
+                            case 't': sb.append('\t'); break;
+                            default: sb.append(nextCh); break;
+                        }
+                        i += 2;
+                        continue;
+                    }
+                    if (ch == '"') break;  // 闭合引号
+                    sb.append(ch);
+                    i++;
+                }
+                if (i >= expr.length()) throw new RuntimeException("未闭合的字符串");
+                i++; // 跳过闭引号
+                tokens.add(new Token(TokenType.STRING, sb.toString()));
                 continue;
             }
             // Number
@@ -182,8 +203,16 @@ public class ExpressionEvaluator {
     private Object parseOr() {
         Object left = parseAnd();
         while (match("||")) {
-            Object right = parseAnd();
-            left = toBool(left) || toBool(right);
+            if (toBool(left)) {
+                // 短路：left 已为 true，跳过右侧求值但仍需解析消费 token
+                boolean prev = noEval;
+                noEval = true;
+                parseAnd();
+                noEval = prev;
+                left = Boolean.TRUE;
+            } else {
+                left = toBool(parseAnd());
+            }
         }
         return left;
     }
@@ -191,8 +220,16 @@ public class ExpressionEvaluator {
     private Object parseAnd() {
         Object left = parseNot();
         while (match("&&")) {
-            Object right = parseNot();
-            left = toBool(left) && toBool(right);
+            if (!toBool(left)) {
+                // 短路：left 已为 false，跳过右侧求值但仍需解析消费 token
+                boolean prev = noEval;
+                noEval = true;
+                parseNot();
+                noEval = prev;
+                left = Boolean.FALSE;
+            } else {
+                left = toBool(parseNot());
+            }
         }
         return left;
     }
@@ -275,6 +312,7 @@ public class ExpressionEvaluator {
                 next();
                 if (t.value.equals("true")) return Boolean.TRUE;
                 if (t.value.equals("false")) return Boolean.FALSE;
+                if (noEval) return null;  // 短路跳过变量查找
                 // Variable lookup
                 Object val = null;
                 if (variables != null && variables.containsKey(t.value)) {

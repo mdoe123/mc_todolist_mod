@@ -21,10 +21,13 @@ public class ChecklistSuggestionProvider implements SuggestionProvider<FabricCli
     @Override
     public CompletableFuture<Suggestions> getSuggestions(CommandContext<FabricClientCommandSource> ctx,
                                                          SuggestionsBuilder builder) {
-        List<String> names = new ArrayList<>(ChecklistStore.loadAll().keySet());
-        for (String name : names) {
-            builder.suggest(name);
-        }
-        return builder.buildFuture();
+        // 异步执行 I/O，避免缓存失效时目录扫描阻塞主线程
+        return CompletableFuture.supplyAsync(() -> {
+            List<String> names = new ArrayList<>(ChecklistStore.loadAll().keySet());
+            for (String name : names) {
+                builder.suggest(name);
+            }
+            return builder.build();
+        });
     }
 }

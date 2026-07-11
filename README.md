@@ -30,8 +30,8 @@ cd todolistmod && gradlew.bat build
 
 构建产物在 `todolistmod/build/libs/`：
 
-- `todolistmod-1.4.4.jar` —— 这就是要放进 `mods` 文件夹的模组文件
-- `todolistmod-1.4.4-sources.jar` —— 源码包（可选）
+- `todolistmod-1.4.5.jar` —— 这就是要放进 `mods` 文件夹的模组文件
+- `todolistmod-1.4.5-sources.jar` —— 源码包（可选）
 
 > 首次构建会自动下载 Minecraft、Yarn 映射和依赖，耗时较长，属正常现象。
 > 若 `services.gradle.org` 下载 Gradle 本体很慢，可把 `gradle/wrapper/gradle-wrapper.properties`
@@ -41,7 +41,7 @@ cd todolistmod && gradlew.bat build
 ## 安装
 
 1. 确保已安装 Fabric Loader 和 Fabric API（选择与你当前 Minecraft 1.21.x 版本对应的 Fabric API）。
-2. 把 `todolistmod-1.4.4.jar` 放进 `.minecraft/mods/`。
+2. 把 `todolistmod-1.4.5.jar` 放进 `.minecraft/mods/`。
 3. 启动游戏。首次进入世界时，模组会在**游戏根目录**生成 `todolist` 文件夹；若配置项 `generateExample` 为 `true`（默认），还会写入一个 `example.json` 示例清单。
 
 ## 配置文件
@@ -303,6 +303,20 @@ cd todolistmod && gradlew.bat build
 > **注意**：清单 JSON 文件内的用户内容（`print` 动作的 `text`、`end` 动作的 `message`、清单 `name`、步骤 `desc`、按钮 `trueText`/`falseText`）属于用户数据，**不会被翻译**，按原样输出。
 
 ## 更新历史
+
+### v1.4.5 — 健壮性与并发修复（P1-P + P1-C）
+
+- **P1-P1** `ExpressionEvaluator`：`||` / `&&` 短路求值不正确，右侧操作数总被完整求值。新增 `noEval` 标志，短路时仅消费 token 跳过变量查找。
+- **P1-P2** `ExpressionEvaluator`：字符串字面量不支持转义，`\"` 被错误截断。改为逐字符解析，支持 `\"` `\\` `\n` `\t` 转义。
+- **P1-P3** `ChecklistSuggestionProvider`：Tab 补全在主线程同步调用 `loadAll()`，缓存失效时可能卡顿。改为 `CompletableFuture.supplyAsync()` 异步执行。
+- **P1-P4** `ChecklistEditorServer`：`setExecutor(null)` 单线程串行，慢请求阻塞所有请求。改为 4 线程固定线程池。
+- **P1-P5** `GameVariables`：`world.day` 强转 int 理论上可溢出。改为返回 `long`。
+- **P1-P6** `ModConfig`：`editorPort` / `maxStepsLimit` 未校验范围。`fillDefaults()` 新增范围校验，非法值回退默认。
+- **P1-C1** `TodoListCommand`：`runDo` 中 `containsKey` + `put` 非原子 TOCTOU 竞态。改用 `putIfAbsent` 原子操作。
+- **P1-C2** `TodoListCommand`：`runChooseNoName` / `runChoose` / `runBack` 的 lambda 执行前执行器可能被 `end` 移除。lambda 内新增 `RUNNING.get(name) != exec` 重新校验，`remove` 改为 `remove(name, exec)` 条件删除。
+- **P1-C3** `ModConfig`：`INSTANCE` 非 volatile，多线程可见性问题。加 `volatile` 修饰。
+- **P1-C4** `ChecklistStore`：`cachedEntries` / `lastFileModTime` 非 volatile，无同步。加 `volatile` 修饰，`loadAll()` / `invalidateCache()` 加 `synchronized`。
+- **P1-C5** `ChecklistExecutor`：`variables` 使用非线程安全 `HashMap`。改为 `ConcurrentHashMap`。
 
 ### v1.4.4 — 健壮性修复（P1-E）
 
